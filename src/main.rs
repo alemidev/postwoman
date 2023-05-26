@@ -68,7 +68,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	};
 
 	println!("╶┐ * {}", collection.info.name);
-	println!(" │   {}", collection.info.description);
+	if let Some(descr) = collection.info.description {
+		println!(" │   {}", descr);
+	}
 	println!(" │");
 
 	match args.action {
@@ -78,7 +80,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 			let item = Item {
 				name: "TODO!".into(),
 				event: None,
-				request: Request {
+				item: None,
+				request: Some(Request {
 					url: crate::proto::Url::String(url),
 					method: method.to_string(),
 					header: Some(
@@ -92,8 +95,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 					),
 					body: if data.len() > 0 { Some(Body::Text(data)) } else { None },
 					description: None,
-				},
-				response: vec![],
+				}),
+				response: Some(vec![]),
 			};
 
 			if debug {

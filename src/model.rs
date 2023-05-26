@@ -6,6 +6,18 @@ use crate::proto::Item;
 
 impl Item {
 	pub async fn send(&self) -> Result<Response> {
+		if let Some(items) = self.item {
+			let tasks = vec![];
+			for i in items {
+				tasks.push(
+					tokio::spawn(async { i.send().await })
+				)
+			}
+			for t in tasks {
+				t.await.unwrap()?;
+			}
+
+		}
 		let method = Method::from_bytes(
 			self.request.method.as_bytes() // TODO lol?
 		).unwrap_or(Method::GET); // TODO throw an error rather than replacing it silently

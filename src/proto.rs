@@ -10,7 +10,7 @@ pub struct PostWomanCollection {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CollectionInfo {
 	pub name: String,
-	pub description: String,
+	pub description: Option<String>,
 	pub schema: String,
 
 	pub _postman_id: Option<String>,
@@ -20,8 +20,9 @@ pub struct CollectionInfo {
 pub struct Item {
 	pub name: String,
 	pub event: Option<Vec<Event>>,
-	pub request: Request,
-	pub response: Vec<String>, // TODO surely isn't just strings
+	pub request: Option<Request>,
+	pub response: Option<Vec<String>>, // TODO surely isn't just strings
+	pub item: Option<Vec<Item>>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

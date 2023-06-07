@@ -1,11 +1,12 @@
-mod proto;
+// mod proto;
 mod model;
 
 use clap::{Parser, Subcommand};
-use proto::Body;
 use reqwest::Method;
 
-use crate::proto::{Item, Request, Header};
+use postman_collection::{PostmanCollection, v2_1_0::Spec};
+
+// use crate::proto::{Item, Request, Header};
 
 /// API tester and debugger from your CLI
 #[derive(Parser, Debug)]
@@ -43,10 +44,6 @@ pub enum PostWomanActions {
 		#[arg(short, long, default_value = "")]
 		data: String,
 
-		/// show request that is being sent
-		#[arg(long, default_value_t = false)]
-		debug: bool,
-
 		/// add action to collection items
 		#[arg(short = 'S', long, default_value_t = false)]
 		save: bool,
@@ -62,70 +59,82 @@ pub enum PostWomanActions {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	let args = PostWomanArgs::parse();
 
-	let mut collection : proto::PostWomanCollection = {
-		let file = std::fs::File::open(&args.collection)?;
-		serde_json::from_reader(file)?
-	};
+	let collection = 
+		match postman_collection::from_path(args.collection) {
+			Ok(PostmanCollection::V2_1_0(spec)) => spec,
+			_ => Spec::default(), // TODO log what is happening here!
+		};
 
-	println!("╶┐ * {}", collection.info.name);
-	if let Some(descr) = collection.info.description {
-		println!(" │   {}", descr);
+	if args.verbose {
+		println!("╶┐ * {}", collection.info.name);
+		if let Some(descr) = &collection.info.description {
+			match descr {
+				postman_collection::v2_1_0::DescriptionUnion::Description(x) => {
+					if let Some(d) = x.content { println!(" │   {}", d) };
+					if let Some(v) = x.version { println!(" │   {}", v) };
+				},
+				postman_collection::v2_1_0::DescriptionUnion::String(x) => println!(" │   {}", x),
+			}
+		}
+		println!(" │");
 	}
-	println!(" │");
 
 	match args.action {
 		PostWomanActions::Send {
-			url, headers, method, data, save, debug
+			url, headers, method, data, save
 		} => {
-			let item = Item {
-				name: "TODO!".into(),
-				event: None,
-				item: None,
-				request: Some(Request {
-					url: crate::proto::Url::String(url),
-					method: method.to_string(),
-					header: Some(
-						headers
-							.chunks(2)
-							.map(|x| Header {
-								key: x[0].clone(),
-								value: x[1].clone(), // TODO panics
-							})
-							.collect(),
-					),
-					body: if data.len() > 0 { Some(Body::Text(data)) } else { None },
-					description: None,
-				}),
-				response: Some(vec![]),
+			let req = Request::Object {
+				url: crate::proto::Url::String(url),
+				method: method.to_string(),
+				header: Some(
+					headers
+						.chunks(2)
+						.map(|x| Header {
+							key: x[0].clone(),
+							value: x[1].clone(), // TODO panics
+						})
+						.collect(),
+				),
+				body: if data.len() > 0 { Some(Body::String(data)) } else { None },
+				description: None,
 			};
 
-			if debug {
-				println!(" ├ {:?}", item);
-			}
+			let res = req.clone().send().await?;
 
-			let res = item.send().await?;
-			println!(" ├┐ {}", res.status());
+			if args.verbose {
+				println!(" ├┐ {}", res.status());
+			}
 
 			if args.verbose {
 				println!(" ││  {}", res.text().await?.replace("\n", "\n ││  "));
+			} else {
+				println!("{}", res.text().await?);
 			}
 
 			if save {
 				// TODO prompt for name and descr
+				let item = Item {
+					name: "TODO!".into(),
+					event: None,
+					item: None,
+					request: Some(req),
+					response: Some(vec![]),
+				};
 				collection.item.push(item);
 				std::fs::write(&args.collection, serde_json::to_string(&collection)?)?;
-				println!(" ││ * saved");
+				if args.verbose { println!(" ││ * saved") }
 			}
 
-			println!(" │╵");
+			if args.verbose { println!(" │╵") }
 		},
 		PostWomanActions::Test { } => {
 			let mut tasks = Vec::new();
 
-			for item in collection.item {
+			for req in collection.collect() {
 				let t = tokio::spawn(async move {
-					let r = item.send().await?;
-					println!(" ├ {} >> {}", item.name, r.status());
+					let url = req.to_string();
+					let r = req.send().await?;
+					println!(" ├ {} >> {}", url, r.status());
 					if args.verbose {
 						println!(" │  {}", r.text().await?.replace("\n", "\n │  "));
 					}

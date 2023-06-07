@@ -1,58 +1,80 @@
 use serde::{Serialize, Deserialize};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PostWomanCollection {
 	pub variables: Vec<String>, // TODO these sure aren't just strings for sure...
 	pub info: CollectionInfo,
 	pub item: Vec<Item>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CollectionInfo {
 	pub name: String,
 	pub description: Option<String>,
-	pub schema: String,
-
-	pub _postman_id: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Item {
 	pub name: String,
 	pub event: Option<Vec<Event>>,
 	pub request: Option<Request>,
-	pub response: Option<Vec<String>>, // TODO surely isn't just strings
+	pub response: Option<Vec<Response>>,
 	pub item: Option<Vec<Item>>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Response {
+	pub name: String,
+	pub code: u16,
+	pub header: String,
+	// pub cookie: Vec<String>,
+	pub body: Body,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Event {
 	pub listen: String,
 	pub script: Script,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Script {
 	pub r#type: String,
 	pub exec: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Request {
-	pub url: Url,
-	pub method: String,
-	pub header: Option<Vec<Header>>,
-	pub body: Option<Body>,
-	pub description: Option<String>,
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(untagged)]
+pub enum Request {
+	Object {
+		url: Url,
+		method: String,
+		header: Option<Vec<Header>>,
+		body: Option<Body>,
+		description: Option<String>,
+	},
+	String(String),
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+impl ToString for Request {
+	fn to_string(&self) -> String {
+		match self {
+			Self::String(x) => x.clone(),
+			Self::Object {
+				url,
+				method: _, header: _, body: _, description: _
+			} => url.to_string(),
+		}
+	}
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Header {
 	pub key: String,
 	pub value: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Query {
 	pub key: String,
 	pub value: String,
@@ -66,23 +88,23 @@ impl ToString for Query {
 	}
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(untagged)]
 pub enum Body {
-	Json(serde_json::Value),
-	Text(String),
+	Object(serde_json::Value),
+	String(String),
 }
 
 impl ToString for Body {
 	fn to_string(&self) -> String {
 		match self {
-			Body::Json(v) => serde_json::to_string(v).unwrap(),
-			Body::Text(s) => s.clone(),
+			Body::Object(v) => serde_json::to_string(v).unwrap(),
+			Body::String(s) => s.clone(),
 		}
 	}
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(untagged)]
 pub enum Url {
 	Object {
@@ -131,7 +153,7 @@ impl ToString for Url {
 
 // barebones custom error
 
-// #[derive(Debug)]
+// #[derive(Debug, Clone)]
 // pub struct PostWomanError {
 // 	msg : String,
 // }

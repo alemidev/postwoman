@@ -1,60 +1,104 @@
-use std::str::FromStr;
+use postman_collection::{PostmanCollection, v1_0_0, v2_0_0, v2_1_0};
 
-use reqwest::{Method, Result, Client, Response, Url};
+pub struct PostWomanCollection {
+	collection: PostmanCollection
+}
 
-impl Request {
-	pub async fn send(self) -> Result<Response> {
-		match self {
-			Self::Object { url, method, header, body, description: _ } => {
-				let method = Method::from_bytes(
-					method.as_bytes() // TODO lol?
-				).unwrap_or(Method::GET); // TODO throw an error rather than replacing it silently
+impl From<PostmanCollection> for PostWomanCollection {
+	fn from(value: PostmanCollection) -> Self {
+		Self { collection: value }
+	}
+}
 
-				let url = Url::from_str(&url.to_string()).unwrap();
-
-				let mut req = Client::new().request(method, url);
-
-				if let Some(headers) = header {
-					for h in headers {
-						req = req.header(h.key.clone(), h.value.clone())
-					}
-				}
-
-				if let Some(body) = body {
-					req = req.body(body.to_string());
-				}
-
-				req.send().await
+impl PostWomanCollection {
+	pub fn description(&self) -> Option<&String> {
+		match &self.collection {
+			PostmanCollection::V1_0_0(spec) => {
+				spec.description.as_ref()
 			},
-			Self::String(url) => reqwest::get(url).await
+			PostmanCollection::V2_0_0(spec) => {
+				match &spec.info.description {
+					Some(v2_0_0::DescriptionUnion::String(x)) => Some(x),
+					Some(v2_0_0::DescriptionUnion::Description(v2_0_0::Description { content, .. })) => content.as_ref(),
+					None => None,
+				}
+			},
+			PostmanCollection::V2_1_0(spec) => {
+				match &spec.info.description {
+					Some(v2_1_0::DescriptionUnion::String(x)) => Some(x),
+					Some(v2_1_0::DescriptionUnion::Description(v2_1_0::Description { content, .. })) => content.as_ref(),
+					None => None,
+				}
+			},
+		}
+	}
+
+	pub fn requests(&self) -> Vec<reqwest::Request> {
+		match self.collection {
+			PostmanCollection::V1_0_0(_) => todo!(),
+			PostmanCollection::V2_0_0(spec) => {
+				let mut out = Vec::new();
+				for item in spec.item {
+					out.append(&mut collect_requests_2_0_0_r(&item));
+				}
+				out
+			},
+			PostmanCollection::V2_1_0(spec) => {
+				let mut out = Vec::new();
+				for item in spec.item {
+					out.append(&mut collect_requests_2_1_0_r(&item));
+				}
+				out
+			},
 		}
 	}
 }
 
-impl PostWomanCollection { // TODO repeated code from Item.collect()
-	pub fn collect(&self) -> Vec<Request> {
-		let mut out = Vec::new();
-		for i in &self.item {
-			out.append(&mut i.collect())
-		}
-		out
+pub fn collect_requests_1_0_0_r(root: &v1_0_0::Spec) -> Vec<reqwest::Request> {
+	todo!()
+}
+
+pub trait IntoRequest {
+	fn make_request(&self) -> reqwest::Request;
+}
+
+impl IntoRequest for v2_0_0::RequestClass {
+	fn make_request(&self) -> reqwest::Request {
+		todo!()
 	}
 }
 
-impl Item {
-	pub fn collect(&self) -> Vec<Request> {
-		let mut out = Vec::new(); // TODO very inefficient to always allocate
+pub trait CollectRequests {
+	fn from_self(&self) -> &reqwest::Request;
+}
 
-		if let Some(items) = &self.item {
-			for item in items {
-				out.append(&mut item.collect());
-			}
-		}
-
-		if let Some(req) = &self.request {
-			out.push(req.clone());
-		}
-
-		out
+pub fn collect_requests_2_0_0_r(root: &v2_0_0::Items) -> Vec<reqwest::Request> {
+	let mut requests = Vec::new();
+	if let Some(r) = root.request {
+		let clazz = match r {
+			v2_0_0::RequestUnion::String(url) => v2_0_0::RequestClass {
+				auth: None,
+				body: None,
+				certificate: None,
+				description: None,
+				header: None,
+				method: None,
+				proxy: None,
+				url: Some(v2_0_0::Url::String(url)),
+			},
+			v2_0_0::RequestUnion::RequestClass(r) => r,
+		};
+		requests.push(clazz.make_request());
 	}
+	if let Some(sub) = root.item {
+		for item in sub {
+			requests.append(&mut collect_requests_2_0_0_r(&item));
+		}
+
+	}
+	requests
+}
+
+pub fn collect_requests_2_1_0_r(root: &v2_1_0::Items) -> Vec<reqwest::Request> {
+	todo!()
 }

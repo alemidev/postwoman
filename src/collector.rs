@@ -40,12 +40,21 @@ pub fn requests(root: Items) -> Vec<RequestClass> {
 }
 
 pub fn url(req: &RequestClass) -> String {
-	match &req.url {
+	let mut base_url = match &req.url {
 		Some(Url::String(x)) => x.clone(),
 		Some(Url::UrlClass(UrlClass { raw: Some(raw) , .. })) => raw.clone(),
 		// TODO compose UrlClass
 		_ => "".into(),
+	};
+
+	for (k, v) in std::env::vars() {
+		let key = format!("{{{{{}}}}}", k);
+		if base_url.contains(&key) {
+			base_url = base_url.replace(&key, &v);
+		}
 	}
+
+	base_url
 }
 
 pub async fn send(req: RequestClass) -> reqwest::Result<reqwest::Response> {

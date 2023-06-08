@@ -1,5 +1,5 @@
 use std::str::FromStr;
-use postman_collection::v2_0_0::{Spec, RequestClass, Items, Url, UrlClass, HeaderUnion, Body};
+use postman_collection::v2_1_0::{Spec, RequestClass, Items, Url, UrlClass, HeaderUnion, Body};
 
 pub fn collect(collection: Spec) -> Vec<RequestClass> {
 	let mut reqs = Vec::new();
@@ -14,12 +14,17 @@ pub fn requests(root: Items) -> Vec<RequestClass> {
 
 	if let Some(r) = root.request {
 		match r {
-			postman_collection::v2_0_0::RequestUnion::RequestClass(x) => reqs.push(x),
-			postman_collection::v2_0_0::RequestUnion::String(url) => reqs.push(
+			postman_collection::v2_1_0::RequestUnion::RequestClass(x) => reqs.push(x),
+			postman_collection::v2_1_0::RequestUnion::String(url) => reqs.push(
 				RequestClass {
 					method: Some("GET".into()),
 					url: Some(Url::String(url)),
-					..Default::default()
+					auth: None,
+					body: None,
+					certificate: None,
+					description: None,
+					header: None,
+					proxy: None,
 				}
 			),
 		}

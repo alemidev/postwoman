@@ -3,9 +3,8 @@
 mod collector;
 
 use clap::{Parser, Subcommand};
-use reqwest::Method;
 
-use postman_collection::{PostmanCollection, v2_0_0::Spec};
+use postman_collection::{PostmanCollection, v2_1_0::Spec};
 
 use crate::collector::{collect, url, send};
 // use crate::proto::{Item, Request, Header};
@@ -63,13 +62,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 	let collection =
 		match postman_collection::from_path(args.collection) {
-			Ok(PostmanCollection::V2_0_0(spec)) => spec,
+			Ok(PostmanCollection::V2_1_0(spec)) => spec,
 			Ok(PostmanCollection::V1_0_0(_)) => {
-				eprintln!("collection using v1.0.0 format! only 2.0.0 is allowed");
+				eprintln!("collection using v1.0.0 format! only 2.1.0 is allowed");
 				Spec::default()
 			},
-			Ok(PostmanCollection::V2_1_0(_)) => {
-				eprintln!("collection using v2.1.0 format! only 2.0.0 is allowed");
+			Ok(PostmanCollection::V2_0_0(_)) => {
+				eprintln!("collection using v2.0.0 format! only 2.1.0 is allowed");
 				Spec::default()
 			},
 			Err(e) => {
@@ -82,11 +81,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 		println!("╶┐ * {}", collection.info.name);
 		if let Some(descr) = &collection.info.description {
 			match descr {
-				postman_collection::v2_0_0::DescriptionUnion::Description(x) => {
+				postman_collection::v2_1_0::DescriptionUnion::Description(x) => {
 					if let Some(d) = &x.content { println!(" │   {}", d) };
 					if let Some(v) = &x.version { println!(" │   {}", v) };
 				},
-				postman_collection::v2_0_0::DescriptionUnion::String(x) => println!(" │   {}", x),
+				postman_collection::v2_1_0::DescriptionUnion::String(x) => println!(" │   {}", x),
 			}
 		}
 		println!(" │");

@@ -1,5 +1,7 @@
 mod model;
 
+use std::sync::Arc;
+
 use clap::{Parser, Subcommand};
 
 use crate::model::PostWomanCollection;
@@ -45,7 +47,11 @@ pub enum PostWomanActions {
 	// 	save: bool,
 	// },
 	/// run all saved requests
-	Test {},
+	Test {
+		/// isolate each request client from others
+		#[arg(long, default_value_t = false)]
+		isolated: bool,
+	},
 	/// list saved requests
 	Show {},
 }
@@ -116,17 +122,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 		// 	if args.verbose { println!(" │╵") }
 		// },
-		PostWomanActions::Test { } => {
+		PostWomanActions::Test { isolated } => {
 			let reqs = collection.requests();
 
 			let mut tasks = Vec::new();
 
+			let client = Arc::new(reqwest::Client::default());
+
 			for req in reqs {
+				let _c = client.clone();
 				let t = tokio::spawn(async move {
-					let c = reqwest::Client::default(); // TODO maybe make just 1 client for everyone?
+					let c = if isolated {
+						Arc::new(reqwest::Client::default())
+					} else { _c };
 					let url = req.url().as_str().to_string();
+					let method = req.method().as_str().to_string();
 					let r = c.execute(req).await?;
-					println!(" ├ {} >> {}", url, r.status());
+					println!(" ├ {} {} >> {}", method, url, r.status());
 					if args.verbose {
 						println!(" │  {}", r.text().await?.replace("\n", "\n │  "));
 					}
@@ -137,13 +149,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 			for t in tasks {
 				match t.await? {
-					Ok(_) => todo!(),
+					Ok(_) => {},
 					Err(e) => eprintln!("{}", e),
 				}
 			}
 		},
 		PostWomanActions::Show {  } => {
-			println!(" ├ {:?}", collection);
+			println!(" ├ {:?}", collection); // TODO nicer print
 		},
 	}
 

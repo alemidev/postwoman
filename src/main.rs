@@ -79,8 +79,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 	let collection = PostWomanCollection::from_path(&args.collection)?;
 
+	println!("╶┐ * {}", collection.name());
+
 	if args.verbose {
-		println!("╶┐ * {}", collection.name());
 		if let Some(descr) = &collection.description() {
 			println!(" │   {}", descr);
 		}

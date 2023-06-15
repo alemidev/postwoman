@@ -1,7 +1,7 @@
 mod request;
 mod collector;
 
-use postman_collection::{PostmanCollection, v1_0_0, v2_0_0, v2_1_0};
+use postman_collection::{PostmanCollection, v2_0_0, v2_1_0};
 
 use self::collector::CollectRequests;
 
@@ -24,7 +24,7 @@ impl PostWomanCollection {
 
 	pub fn name(&self) -> &String {
 		match &self.collection {
-			PostmanCollection::V1_0_0(spec) => todo!(),
+			PostmanCollection::V1_0_0(_spec) => todo!(),
 			PostmanCollection::V2_0_0(spec) => &spec.info.name,
 			PostmanCollection::V2_1_0(spec) => &spec.info.name,
 		}

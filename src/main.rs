@@ -1,9 +1,8 @@
 mod model;
-mod collector;
 
 use clap::{Parser, Subcommand};
 
-use crate::{collector::{collect, url, send}, model::PostWomanCollection};
+use crate::model::PostWomanCollection;
 
 /// API tester and debugger from your CLI
 #[derive(Parser, Debug)]
@@ -120,24 +119,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 		PostWomanActions::Test { } => {
 			let reqs = collection.requests();
 
-			// let mut tasks = Vec::new();
+			let mut tasks = Vec::new();
 
-			// for req in reqs {
-			// 	let t = tokio::spawn(async move {
-			// 		let url = url(&req);
-			// 		let r = send(req).await?;
-			// 		println!(" ├ {} >> {}", url, r.status());
-			// 		if args.verbose {
-			// 			println!(" │  {}", r.text().await?.replace("\n", "\n │  "));
-			// 		}
-			// 		Ok::<(), reqwest::Error>(())
-			// 	});
-			// 	tasks.push(t);
-			// }
+			for req in reqs {
+				let t = tokio::spawn(async move {
+					let c = reqwest::Client::default(); // TODO maybe make just 1 client for everyone?
+					let url = req.url().as_str().to_string();
+					let r = c.execute(req).await?;
+					println!(" ├ {} >> {}", url, r.status());
+					if args.verbose {
+						println!(" │  {}", r.text().await?.replace("\n", "\n │  "));
+					}
+					Ok::<(), reqwest::Error>(())
+				});
+				tasks.push(t);
+			}
 
-			// for t in tasks {
-			// 	t.await??;
-			// }
+			for t in tasks {
+				t.await??;
+			}
 		},
 		PostWomanActions::Show {  } => {
 			println!(" ├ {:?}", collection);

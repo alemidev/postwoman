@@ -18,12 +18,19 @@ impl IntoRequest for v2_1_0::RequestClass {
 			&self.method.as_ref().unwrap_or(&"GET".into()).as_bytes() // TODO lol?
 		).unwrap_or(reqwest::Method::GET); // TODO throw an error rather than replacing it silently
 
-		let url_str = match &self.url {
-			Some(v2_1_0::Url::String(x)) => x,
-			Some(v2_1_0::Url::UrlClass(v2_1_0::UrlClass { raw: Some(x), .. })) => x,
+		let mut url_str = match &self.url {
+			Some(v2_1_0::Url::String(x)) => x.clone(),
+			Some(v2_1_0::Url::UrlClass(v2_1_0::UrlClass { raw: Some(x), .. })) => x.clone(),
 			// TODO compose URL from UrlClass rather than only accepting those with raw set
-			_ => "http://localhost",
+			_ => "http://localhost".into(),
 		};
+
+		for (k, v) in std::env::vars() {
+			let key = format!("{{{{{}}}}}", k);
+			if url_str.contains(&key) {
+				url_str = url_str.replace(&key, &v);
+			}
+		}
 
 		let url = reqwest::Url::from_str(&url_str).unwrap();
 

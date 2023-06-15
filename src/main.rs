@@ -169,7 +169,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 						if args.verbose {
 							let mut body = response.text().await?;
 							if pretty {
-								body = serde_json::to_string_pretty(&serde_json::from_str::<serde_json::Value>(&body)?)?;
+								if let Ok(v) = serde_json::from_str::<serde_json::Value>(&body) {
+									if let Ok(t) = serde_json::to_string_pretty(&v) {
+										body = t;
+									}
+								}
 							}
 							println!(" │  {}", body.replace("\n", "\n │  "));
 							println!(" │");

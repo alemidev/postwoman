@@ -16,7 +16,7 @@ impl IntoRequest for v2_1_0::RequestClass {
 	}
 }
 
-impl IntoRequest for v1_0_0::RequestClass {
+impl IntoRequest for v1_0_0::Request {
 	fn make_request(&self) -> reqwest::Request {
 		todo!()
 	}

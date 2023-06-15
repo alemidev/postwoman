@@ -5,6 +5,7 @@ use postman_collection::{PostmanCollection, v1_0_0, v2_0_0, v2_1_0};
 
 use self::collector::CollectRequests;
 
+#[derive(Debug)]
 pub struct PostWomanCollection {
 	collection: PostmanCollection
 }
@@ -16,6 +17,19 @@ impl From<PostmanCollection> for PostWomanCollection {
 }
 
 impl PostWomanCollection {
+
+	pub fn from_path(path: &str) -> postman_collection::errors::Result<Self> {
+		Ok(postman_collection::from_path(path)?.into())
+	}
+
+	pub fn name(&self) -> &String {
+		match &self.collection {
+			PostmanCollection::V1_0_0(spec) => todo!(),
+			PostmanCollection::V2_0_0(spec) => &spec.info.name,
+			PostmanCollection::V2_1_0(spec) => &spec.info.name,
+		}
+	}
+
 	pub fn description(&self) -> Option<&String> {
 		match &self.collection {
 			PostmanCollection::V1_0_0(spec) => {
@@ -39,22 +53,10 @@ impl PostWomanCollection {
 	}
 
 	pub fn requests(&self) -> Vec<reqwest::Request> {
-		match self.collection {
+		match &self.collection {
 			PostmanCollection::V1_0_0(_) => todo!(),
-			PostmanCollection::V2_0_0(spec) => {
-				let mut out = Vec::new();
-				for item in spec.item {
-					out.append(&mut spec.from_self());
-				}
-				out
-			},
-			PostmanCollection::V2_1_0(spec) => {
-				let mut out = Vec::new();
-				for item in spec.item {
-					out.append(&mut spec.from_self());
-				}
-				out
-			},
+			PostmanCollection::V2_0_0(spec) => spec.collect_requests(),
+			PostmanCollection::V2_1_0(spec) => spec.collect_requests(),
 		}
 	}
 }

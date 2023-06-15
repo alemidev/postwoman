@@ -3,10 +3,7 @@ mod collector;
 
 use clap::{Parser, Subcommand};
 
-use postman_collection::{PostmanCollection, v2_1_0::Spec};
-
-use crate::collector::{collect, url, send};
-// use crate::proto::{Item, Request, Header};
+use crate::{collector::{collect, url, send}, model::PostWomanCollection};
 
 /// API tester and debugger from your CLI
 #[derive(Parser, Debug)]
@@ -59,34 +56,16 @@ pub enum PostWomanActions {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	let args = PostWomanArgs::parse();
 
-	let collection =
-		match postman_collection::from_path(args.collection) {
-			Ok(PostmanCollection::V2_1_0(spec)) => spec,
-			Ok(PostmanCollection::V1_0_0(_)) => {
-				eprintln!("collection using v1.0.0 format! only 2.1.0 is allowed");
-				Spec::default()
-			},
-			Ok(PostmanCollection::V2_0_0(_)) => {
-				eprintln!("collection using v2.0.0 format! only 2.1.0 is allowed");
-				Spec::default()
-			},
-			Err(e) => {
-				eprintln!("error loading collection: {}", e);
-				Spec::default()
-			}
-		};
+	let collection = PostWomanCollection::from_path(&args.collection)?;
 
 	if args.verbose {
-		println!("╶┐ * {}", collection.info.name);
-		if let Some(descr) = &collection.info.description {
-			match descr {
-				postman_collection::v2_1_0::DescriptionUnion::Description(x) => {
-					if let Some(d) = &x.content { println!(" │   {}", d) };
-					if let Some(v) = &x.version { println!(" │   {}", v) };
-				},
-				postman_collection::v2_1_0::DescriptionUnion::String(x) => println!(" │   {}", x),
-			}
+		println!("╶┐ * {}", collection.name());
+		if let Some(descr) = &collection.description() {
+			println!(" │   {}", descr);
 		}
+		// if let Some(version) = &collection.version() {
+		// 	println!(" │   {}", version);
+		// }
 		println!(" │");
 	}
 
@@ -139,26 +118,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 		// 	if args.verbose { println!(" │╵") }
 		// },
 		PostWomanActions::Test { } => {
-			let reqs = collect(collection);
+			let reqs = collection.requests();
 
-			let mut tasks = Vec::new();
+			// let mut tasks = Vec::new();
 
-			for req in reqs {
-				let t = tokio::spawn(async move {
-					let url = url(&req);
-					let r = send(req).await?;
-					println!(" ├ {} >> {}", url, r.status());
-					if args.verbose {
-						println!(" │  {}", r.text().await?.replace("\n", "\n │  "));
-					}
-					Ok::<(), reqwest::Error>(())
-				});
-				tasks.push(t);
-			}
+			// for req in reqs {
+			// 	let t = tokio::spawn(async move {
+			// 		let url = url(&req);
+			// 		let r = send(req).await?;
+			// 		println!(" ├ {} >> {}", url, r.status());
+			// 		if args.verbose {
+			// 			println!(" │  {}", r.text().await?.replace("\n", "\n │  "));
+			// 		}
+			// 		Ok::<(), reqwest::Error>(())
+			// 	});
+			// 	tasks.push(t);
+			// }
 
-			for t in tasks {
-				t.await??;
-			}
+			// for t in tasks {
+			// 	t.await??;
+			// }
 		},
 		PostWomanActions::Show {  } => {
 			println!(" ├ {:?}", collection);

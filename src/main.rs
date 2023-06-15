@@ -136,7 +136,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 			}
 
 			for t in tasks {
-				t.await??;
+				match t.await? {
+					Ok(_) => todo!(),
+					Err(e) => eprintln!("{}", e),
+				}
 			}
 		},
 		PostWomanActions::Show {  } => {

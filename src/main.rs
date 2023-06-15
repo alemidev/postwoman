@@ -1,5 +1,4 @@
-// mod proto;
-// mod model;
+mod model;
 mod collector;
 
 use clap::{Parser, Subcommand};

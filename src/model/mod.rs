@@ -1,4 +1,9 @@
+mod request;
+mod collector;
+
 use postman_collection::{PostmanCollection, v1_0_0, v2_0_0, v2_1_0};
+
+use self::collector::CollectRequests;
 
 pub struct PostWomanCollection {
 	collection: PostmanCollection
@@ -39,66 +44,17 @@ impl PostWomanCollection {
 			PostmanCollection::V2_0_0(spec) => {
 				let mut out = Vec::new();
 				for item in spec.item {
-					out.append(&mut collect_requests_2_0_0_r(&item));
+					out.append(&mut spec.from_self());
 				}
 				out
 			},
 			PostmanCollection::V2_1_0(spec) => {
 				let mut out = Vec::new();
 				for item in spec.item {
-					out.append(&mut collect_requests_2_1_0_r(&item));
+					out.append(&mut spec.from_self());
 				}
 				out
 			},
 		}
 	}
-}
-
-pub fn collect_requests_1_0_0_r(root: &v1_0_0::Spec) -> Vec<reqwest::Request> {
-	todo!()
-}
-
-pub trait IntoRequest {
-	fn make_request(&self) -> reqwest::Request;
-}
-
-impl IntoRequest for v2_0_0::RequestClass {
-	fn make_request(&self) -> reqwest::Request {
-		todo!()
-	}
-}
-
-pub trait CollectRequests {
-	fn from_self(&self) -> &reqwest::Request;
-}
-
-pub fn collect_requests_2_0_0_r(root: &v2_0_0::Items) -> Vec<reqwest::Request> {
-	let mut requests = Vec::new();
-	if let Some(r) = root.request {
-		let clazz = match r {
-			v2_0_0::RequestUnion::String(url) => v2_0_0::RequestClass {
-				auth: None,
-				body: None,
-				certificate: None,
-				description: None,
-				header: None,
-				method: None,
-				proxy: None,
-				url: Some(v2_0_0::Url::String(url)),
-			},
-			v2_0_0::RequestUnion::RequestClass(r) => r,
-		};
-		requests.push(clazz.make_request());
-	}
-	if let Some(sub) = root.item {
-		for item in sub {
-			requests.append(&mut collect_requests_2_0_0_r(&item));
-		}
-
-	}
-	requests
-}
-
-pub fn collect_requests_2_1_0_r(root: &v2_1_0::Items) -> Vec<reqwest::Request> {
-	todo!()
 }

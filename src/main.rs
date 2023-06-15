@@ -4,6 +4,8 @@ use std::sync::Arc;
 
 use clap::{Parser, Subcommand};
 
+use regex::Regex;
+
 use crate::model::PostWomanCollection;
 
 /// API tester and debugger from your CLI
@@ -48,6 +50,9 @@ pub enum PostWomanActions {
 	// },
 	/// run all saved requests
 	Test {
+		/// filter requests to fire by url (regex)
+		filter: Option<String>,
+
 		/// isolate each request client from others
 		#[arg(long, default_value_t = false)]
 		isolated: bool,
@@ -139,20 +144,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 		// 	if args.verbose { println!(" │╵") }
 		// },
-		PostWomanActions::Test { isolated, pretty } => {
+		PostWomanActions::Test { filter, isolated, pretty } => {
 			let reqs = collection.requests();
+
+			let matcher = match filter {
+				Some(rex) => Some(Regex::new(&rex)?),
+				None => None,
+			};
 
 			let mut tasks = Vec::new();
 
 			let client = Arc::new(reqwest::Client::default());
 
 			for req in reqs {
+				let url = req.url().as_str().to_string();
+				if let Some(m) = &matcher {
+					if !m.is_match(&url) {
+						continue
+					}
+				}
 				let _c = client.clone();
 				let t = tokio::spawn(async move {
 					let c = if isolated {
 						Arc::new(reqwest::Client::default())
 					} else { _c };
-					let url = req.url().as_str().to_string();
 					let method = req.method().as_str().to_string();
 					let response = c.execute(req).await;
 					match response {

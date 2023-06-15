@@ -51,11 +51,27 @@ pub enum PostWomanActions {
 		/// isolate each request client from others
 		#[arg(long, default_value_t = false)]
 		isolated: bool,
+
+		/// pretty-print json outputs
+		#[arg(short, long, default_value_t = false)]
+		pretty: bool,
 	},
 	/// list saved requests
 	Show {},
 }
 
+enum TestResult {
+	Success {
+		url: String,
+		method: String,
+		response: reqwest::Response,
+	},
+	Failure {
+		url: String,
+		method: String,
+		err: reqwest::Error,
+	}
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -122,7 +138,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 		// 	if args.verbose { println!(" │╵") }
 		// },
-		PostWomanActions::Test { isolated } => {
+		PostWomanActions::Test { isolated, pretty } => {
 			let reqs = collection.requests();
 
 			let mut tasks = Vec::new();
@@ -137,20 +153,35 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 					} else { _c };
 					let url = req.url().as_str().to_string();
 					let method = req.method().as_str().to_string();
-					let r = c.execute(req).await?;
-					println!(" ├ {} {} >> {}", method, url, r.status());
-					if args.verbose {
-						println!(" │  {}", r.text().await?.replace("\n", "\n │  "));
+					let response = c.execute(req).await;
+					match response {
+						Ok(response) => TestResult::Success { url, method, response },
+						Err(err) => TestResult::Failure { url, method, err }
 					}
-					Ok::<(), reqwest::Error>(())
 				});
 				tasks.push(t);
 			}
 
 			for t in tasks {
 				match t.await? {
-					Ok(_) => {},
-					Err(e) => eprintln!("{}", e),
+					TestResult::Success { url, method, response } => {
+						println!(" ├ ✓ {} {} >> {}", method, url, response.status());
+						if args.verbose {
+							let mut body = response.text().await?;
+							if pretty {
+								body = serde_json::to_string_pretty(&serde_json::from_str::<serde_json::Value>(&body)?)?;
+							}
+							println!(" │  {}", body.replace("\n", "\n │  "));
+							println!(" │");
+						}
+					},
+					TestResult::Failure { url, method, err } => {
+						println!(" ├ × {} {} >> ERROR", method, url);
+						if args.verbose {
+							println!(" │  {}", err);
+							println!(" │");
+						}
+					}
 				}
 			}
 		},

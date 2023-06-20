@@ -13,17 +13,17 @@ fn fill_from_env(mut txt: String) -> String {
 }
 
 pub trait IntoRequest {
-	fn make_request(&self) -> reqwest::Request;
+	fn make_request(&self) -> reqwest::RequestBuilder;
 }
 
 impl IntoRequest for v2_0_0::RequestClass {
-	fn make_request(&self) -> reqwest::Request {
+	fn make_request(&self) -> reqwest::RequestBuilder {
 		todo!()
 	}
 }
 
 impl IntoRequest for v2_1_0::RequestClass {
-	fn make_request(&self) -> reqwest::Request {
+	fn make_request(&self) -> reqwest::RequestBuilder {
 		let method = reqwest::Method::from_bytes(
 			&self.method.as_ref().unwrap_or(&"GET".into()).as_bytes() // TODO lol?
 		).unwrap_or(reqwest::Method::GET); // TODO throw an error rather than replacing it silently
@@ -74,12 +74,12 @@ impl IntoRequest for v2_1_0::RequestClass {
 			_ => {},
 		}
 
-		out.build().unwrap() // TODO what about this?
+		out
 	}
 }
 
 impl IntoRequest for v1_0_0::Request {
-	fn make_request(&self) -> reqwest::Request {
+	fn make_request(&self) -> reqwest::RequestBuilder {
 		todo!()
 	}
 }

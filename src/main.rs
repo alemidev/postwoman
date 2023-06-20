@@ -1,12 +1,11 @@
-mod model;
-
-use std::sync::Arc;
+pub mod model;
+mod requestor;
 
 use clap::{Parser, Subcommand};
 
 use regex::Regex;
 
-use crate::model::PostWomanCollection;
+use crate::{model::PostWomanCollection, requestor::{send_requests, show_results}};
 
 /// API tester and debugger from your CLI
 #[derive(Parser, Debug)]
@@ -65,19 +64,6 @@ pub enum PostWomanActions {
 	Show {},
 }
 
-enum TestResult {
-	Success {
-		url: String,
-		method: String,
-		response: reqwest::Response,
-	},
-	Failure {
-		url: String,
-		method: String,
-		err: reqwest::Error,
-	}
-}
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	let args = PostWomanArgs::parse();
@@ -93,8 +79,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 		// if let Some(version) = &collection.version() {
 		// 	println!(" │   {}", version);
 		// }
-		println!(" │");
 	}
+
+	println!(" │");
 
 	match args.action {
 		// PostWomanActions::Send {
@@ -144,7 +131,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 		// 	if args.verbose { println!(" │╵") }
 		// },
-		PostWomanActions::Test { filter, isolated, pretty } => {
+		PostWomanActions::Test { filter, isolated: _, pretty } => {
 			let reqs = collection.requests();
 
 			let matcher = match filter {
@@ -152,66 +139,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 				None => None,
 			};
 
-			let mut tasks = Vec::new();
+			let results = send_requests(reqs, matcher).await;
 
-			let client = Arc::new(reqwest::Client::default());
+			show_results(results, args.verbose, pretty).await;
 
-			for req in reqs {
-				let url = req.url().as_str().to_string();
-				if let Some(m) = &matcher {
-					if !m.is_match(&url) {
-						continue
-					}
-				}
-				let _c = client.clone();
-				let t = tokio::spawn(async move {
-					let c = if isolated {
-						Arc::new(reqwest::Client::default())
-					} else { _c };
-					let method = req.method().as_str().to_string();
-					// if args.verbose {
-					// 	println!(" ├─  {:?}", req);
-					// 	if let Some(body) = req.body() {
-					// 		println!(" ├──  {}", std::str::from_utf8(body.as_bytes().unwrap()).unwrap());
-					// 	}
-					// }
-					let response = c.execute(req).await;
-					match response {
-						Ok(response) => TestResult::Success { url, method, response },
-						Err(err) => TestResult::Failure { url, method, err }
-					}
-				});
-				tasks.push(t);
-			}
-
-			for t in tasks {
-				match t.await? {
-					TestResult::Success { url, method, response } => {
-						let status_code = response.status().as_u16();
-						let marker = if status_code < 400 { '✓' } else { '×' };
-						println!(" ├ {} {} >> {} {}", marker, status_code, method, url);
-						if args.verbose {
-							let mut body = response.text().await?;
-							if pretty {
-								if let Ok(v) = serde_json::from_str::<serde_json::Value>(&body) {
-									if let Ok(t) = serde_json::to_string_pretty(&v) {
-										body = t;
-									}
-								}
-							}
-							println!(" │  {}", body.replace("\n", "\n │  "));
-							println!(" │");
-						}
-					},
-					TestResult::Failure { url, method, err } => {
-						println!(" ├ ! ERROR >> {} {}", method, url);
-						if args.verbose {
-							println!(" │  {}", err);
-							println!(" │");
-						}
-					}
-				}
-			}
 		},
 		PostWomanActions::Show {  } => {
 			println!(" ├ {:?}", collection); // TODO nicer print

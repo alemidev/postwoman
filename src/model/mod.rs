@@ -1,9 +1,9 @@
-mod request;
-mod collector;
+pub mod request;
+pub mod collector;
 
 use postman_collection::{PostmanCollection, v2_0_0, v2_1_0};
 
-use self::collector::CollectRequests;
+use self::collector::{CollectRequests, RequestTree};
 
 #[derive(Debug)]
 pub struct PostWomanCollection {
@@ -52,7 +52,7 @@ impl PostWomanCollection {
 		}
 	}
 
-	pub fn requests(&self) -> Vec<reqwest::Request> {
+	pub fn requests(&self) -> RequestTree {
 		match &self.collection {
 			PostmanCollection::V1_0_0(_) => todo!(),
 			PostmanCollection::V2_0_0(spec) => spec.collect_requests(),

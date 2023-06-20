@@ -37,9 +37,23 @@ impl IntoRequest for v2_1_0::RequestClass {
 
 		url_str = fill_from_env(url_str);
 
-		let url = reqwest::Url::from_str(&url_str).unwrap();
+		let url = reqwest::Url::from_str(&url_str).unwrap_or_else(|e| {
+			eprintln!("error creating url ({}), falling back to localhost", e);
+			reqwest::Url::from_str("http://localhost/").unwrap()
+		});
 
 		let mut out = reqwest::Client::new().request(method, url);
+
+		// TODO handle more auth types than just bearer
+		if let Some(auth) = &self.auth {
+			if let Some(bearers) = &auth.bearer {
+				for bearer in bearers {
+					if let Some(value) = &bearer.value {
+						out = out.header("Authorization", format!("Bearer {}", value.as_str().unwrap_or(&value.to_string())))
+					}
+				}
+			}
+		}
 
 		match &self.header {
 			Some(v2_1_0::HeaderUnion::HeaderArray(x)) => {
@@ -52,9 +66,10 @@ impl IntoRequest for v2_1_0::RequestClass {
 			_ => {},
 		}
 
+
 		match &self.body {
 			Some(v2_1_0::Body { raw: Some(x), .. }) => {
-				out = out.body(x.clone()) // TODO try to avoid cloning?
+				out = out.body(fill_from_env(x.clone())) // TODO try to avoid cloning?
 			},
 			_ => {},
 		}

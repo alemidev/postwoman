@@ -18,10 +18,6 @@ struct PostWomanArgs {
 	/// Action to run
 	#[clap(subcommand)]
 	action: PostWomanActions,
-
-	/// show response body of each request
-	#[arg(short, long, default_value_t = false)]
-	verbose: bool,
 }
 
 #[derive(Subcommand, Debug)]
@@ -59,6 +55,10 @@ pub enum PostWomanActions {
 		/// pretty-print json outputs
 		#[arg(short, long, default_value_t = false)]
 		pretty: bool,
+
+		/// show response body of each request
+		#[arg(short, long, default_value_t = false)]
+		verbose: bool,
 	},
 	/// list saved requests
 	Show {},
@@ -72,14 +72,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 	println!("╶┐ * {}", collection.name());
 
-	if args.verbose {
-		if let Some(descr) = &collection.description() {
-			println!(" │   {}", descr);
-		}
-		// if let Some(version) = &collection.version() {
-		// 	println!(" │   {}", version);
-		// }
+	if let Some(descr) = &collection.description() {
+		println!(" │   {}", descr);
 	}
+	// if let Some(version) = &collection.version() {
+	// 	println!(" │   {}", version);
+	// }
 
 	println!(" │");
 
@@ -131,7 +129,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 		// 	if args.verbose { println!(" │╵") }
 		// },
-		PostWomanActions::Test { filter, isolated: _, pretty } => {
+		PostWomanActions::Test { filter, isolated: _, pretty, verbose } => {
 			let reqs = collection.requests();
 
 			let matcher = match filter {
@@ -141,8 +139,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 			let results = send_requests(reqs, matcher).await;
 
-			show_results(results, args.verbose, pretty).await;
-
+			show_results(results, verbose, pretty).await;
 		},
 		PostWomanActions::Show {  } => {
 			println!(" ├ {:?}", collection); // TODO nicer print

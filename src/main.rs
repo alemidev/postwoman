@@ -169,6 +169,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 						Arc::new(reqwest::Client::default())
 					} else { _c };
 					let method = req.method().as_str().to_string();
+					// if args.verbose {
+					// 	println!(" ├─  {:?}", req);
+					// 	if let Some(body) = req.body() {
+					// 		println!(" ├──  {}", std::str::from_utf8(body.as_bytes().unwrap()).unwrap());
+					// 	}
+					// }
 					let response = c.execute(req).await;
 					match response {
 						Ok(response) => TestResult::Success { url, method, response },
@@ -181,7 +187,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 			for t in tasks {
 				match t.await? {
 					TestResult::Success { url, method, response } => {
-						println!(" ├ ✓ {} {} >> {}", method, url, response.status());
+						let status_code = response.status().as_u16();
+						let marker = if status_code < 400 { '✓' } else { '×' };
+						println!(" ├ {} {} >> {} {}", marker, status_code, method, url);
 						if args.verbose {
 							let mut body = response.text().await?;
 							if pretty {
@@ -196,7 +204,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 						}
 					},
 					TestResult::Failure { url, method, err } => {
-						println!(" ├ × {} {} >> ERROR", method, url);
+						println!(" ├ ! ERROR >> {} {}", method, url);
 						if args.verbose {
 							println!(" │  {}", err);
 							println!(" │");

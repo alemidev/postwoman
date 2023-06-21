@@ -1,11 +1,14 @@
 pub mod model;
 mod requestor;
+mod printer;
 
 use clap::{Parser, Subcommand};
 
 use regex::Regex;
 
-use crate::{model::PostWomanCollection, requestor::{send_requests, show_results}};
+use crate::{model::PostWomanCollection, requestor::send_requests , printer::{show_results, show_requests}};
+
+static APP_USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"));
 
 /// API tester and debugger from your CLI
 #[derive(Parser, Debug)]
@@ -59,9 +62,24 @@ pub enum PostWomanActions {
 		/// show response body of each request
 		#[arg(short, long, default_value_t = false)]
 		verbose: bool,
+
+		/// don't make any real request
+		#[arg(long, default_value_t = false)]
+		dry_run: bool,
 	},
 	/// list saved requests
-	Show {},
+	Show {
+		/// filter requests to display by url (regex)
+		filter: Option<String>,
+
+		/// pretty-print json outputs
+		#[arg(short, long, default_value_t = false)]
+		pretty: bool,
+
+		/// show response body of each request
+		#[arg(short, long, default_value_t = false)]
+		verbose: bool,
+	},
 }
 
 #[tokio::main]
@@ -69,17 +87,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	let args = PostWomanArgs::parse();
 
 	let collection = PostWomanCollection::from_path(&args.collection)?;
-
-	println!("╶┐ * {}", collection.name());
-
-	if let Some(descr) = &collection.description() {
-		println!(" │   {}", descr);
-	}
-	// if let Some(version) = &collection.version() {
-	// 	println!(" │   {}", version);
-	// }
-
-	println!(" │");
 
 	match args.action {
 		// PostWomanActions::Send {
@@ -129,23 +136,46 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 		// 	if args.verbose { println!(" │╵") }
 		// },
-		PostWomanActions::Test { filter, isolated: _, pretty, verbose } => {
-			let reqs = collection.requests();
-
+		PostWomanActions::Test { filter, isolated, pretty, verbose, dry_run } => {
 			let matcher = match filter {
 				Some(rex) => Some(Regex::new(&rex)?),
 				None => None,
 			};
 
-			let results = send_requests(reqs, matcher).await;
+			let client = if isolated { None } else {
+				Some(
+					reqwest::Client::builder()
+						.user_agent(APP_USER_AGENT)
+						.build()
+						.unwrap()
+				)
+			};
 
-			show_results(results, verbose, pretty).await;
+			match collection.requests(matcher.as_ref()) {
+				Some(tree) => {
+					let results = send_requests(tree, client, dry_run).await;
+					show_results(results, verbose, pretty).await;
+				},
+				None => {
+					eprintln!("[!] no requests match given filter");
+				}
+			}
+
 		},
-		PostWomanActions::Show {  } => {
-			println!(" ├ {:?}", collection); // TODO nicer print
+		PostWomanActions::Show { filter, verbose, pretty } => {
+			let matcher = match filter {
+				Some(rex) => Some(Regex::new(&rex)?),
+				None => None,
+			};
+			match collection.requests(matcher.as_ref()) {
+				Some(tree) => {
+					show_requests(tree, verbose, pretty);
+				},
+				None => {
+					eprintln!("[!] no requests match given filter");
+				}
+			}
 		},
 	}
-
-	println!(" ╵");
 	Ok(())
 }

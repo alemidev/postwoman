@@ -1,7 +1,9 @@
 pub mod request;
 pub mod collector;
+pub mod description;
 
 use postman_collection::{PostmanCollection, v2_0_0, v2_1_0};
+use regex::Regex;
 
 use self::collector::{CollectRequests, RequestTree};
 
@@ -52,11 +54,11 @@ impl PostWomanCollection {
 		}
 	}
 
-	pub fn requests(&self) -> RequestTree {
+	pub fn requests(&self, filter: Option<&Regex>) -> Option<RequestTree> {
 		match &self.collection {
 			PostmanCollection::V1_0_0(_) => todo!(),
-			PostmanCollection::V2_0_0(spec) => spec.collect_requests(),
-			PostmanCollection::V2_1_0(spec) => spec.collect_requests(),
+			PostmanCollection::V2_0_0(spec) => spec.collect_requests(filter),
+			PostmanCollection::V2_1_0(spec) => spec.collect_requests(filter),
 		}
 	}
 }

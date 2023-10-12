@@ -11,7 +11,7 @@
 			"name": "GET request",
 			"request": {
 				"url": {
-					"raw": "https://alemi.dev/dump?source=sample-collection",
+					"raw": "https://api.alemi.dev/dump?source=sample-collection",
 					"protocol": "https",
 					"host": [
 						"alemi",
@@ -43,7 +43,7 @@
 				{
 					"name": "Text body",
 					"request": {
-						"url": "https://alemi.dev/dump",
+						"url": "https://api.alemi.dev/dump",
 						"method": "POST",
 						"header": [
 							{
@@ -63,7 +63,7 @@
 				{
 					"name": "Json body",
 					"request": {
-						"url": "https://alemi.dev/dump",
+						"url": "https://api.alemi.dev/dump",
 						"method": "POST",
 						"header": [
 							{

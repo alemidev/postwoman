@@ -26,10 +26,10 @@ All coming examples are run with provided example `postwoman.json` in their cwd.
 ```
 $ pw show
 ─┐ Sample Postman Collection
- ├ * GET https://alemi.dev/dump?source=sample-collection
+ ├ * GET https://api.alemi.dev/dump?source=sample-collection
  ├─┐ POST requests
- │ ├ * POST https://alemi.dev/dump
- │ ├ * POST https://alemi.dev/dump
+ │ ├ * POST https://api.alemi.dev/dump
+ │ ├ * POST https://api.alemi.dev/dump
  │ ╵
  ╵
 ```
@@ -39,15 +39,15 @@ $ pw show -v
 ─┐ Sample Postman Collection
  │   A sample collection to demonstrate collections as a set of related requests
  │
- ├ * GET https://alemi.dev/dump?source=sample-collection
+ ├ * GET https://api.alemi.dev/dump?source=sample-collection
  │
  ├─┐ POST requests
  │ │
- │ ├ * POST https://alemi.dev/dump
+ │ ├ * POST https://api.alemi.dev/dump
  │ │   [ content-type:text/plain ]
  │ │   Duis posuere augue vel cursus pharetra. In luctus a ex nec pretium...
  │ │
- │ ├ * POST https://alemi.dev/dump
+ │ ├ * POST https://api.alemi.dev/dump
  │ │   [ content-type:application/json ]
  │ │   {"length":100,"text":"Lorem ipsum"}
  │ │
@@ -60,17 +60,17 @@ $ pw show -v -p
 ─┐ Sample Postman Collection
  │   A sample collection to demonstrate collections as a set of related requests
  │
- ├ * GET https://alemi.dev/dump?source=sample-collection
+ ├ * GET https://api.alemi.dev/dump?source=sample-collection
  │
  ├─┐ POST requests
  │ │
- │ ├ * POST https://alemi.dev/dump
+ │ ├ * POST https://api.alemi.dev/dump
  │ │   [
  │ │     content-type:text/plain
  │ │   ]
  │ │   Duis posuere augue vel cursus pharetra. In luctus a ex nec pretium...
  │ │
- │ ├ * POST https://alemi.dev/dump
+ │ ├ * POST https://api.alemi.dev/dump
  │ │   [
  │ │     content-type:application/json
  │ │   ]
@@ -88,10 +88,10 @@ $ pw show -v -p
 ```
 $ pw test
 ─┐ Sample Postman Collection
- ├ ✓ 200 >> GET https://alemi.dev/dump?source=sample-collection
+ ├ ✓ 200 >> GET https://api.alemi.dev/dump?source=sample-collection
  ├─┐ POST requests
- │ ├ ✓ 200 >> POST https://alemi.dev/dump
- │ ├ ✓ 200 >> POST https://alemi.dev/dump
+ │ ├ ✓ 200 >> POST https://api.alemi.dev/dump
+ │ ├ ✓ 200 >> POST https://api.alemi.dev/dump
  │ ╵
  ╵
 ```
@@ -101,7 +101,7 @@ $ pw test -v -p
 ─┐ Sample Postman Collection
  │   A sample collection to demonstrate collections as a set of related requests
  │
- ├ ✓ 200 >> GET https://alemi.dev/dump?source=sample-collection
+ ├ ✓ 200 >> GET https://api.alemi.dev/dump?source=sample-collection
  │   {
  │     "body": "",
  │     "headers": {
@@ -122,7 +122,7 @@ $ pw test -v -p
  │
  ├─┐ POST requests
  │ │
- │ ├ ✓ 200 >> POST https://alemi.dev/dump
+ │ ├ ✓ 200 >> POST https://api.alemi.dev/dump
  │ │   {
  │ │     "body": "Duis posuere augue vel cursus pharetra. In luctus a ex nec pretium...",
  │ │     "headers": {
@@ -143,7 +143,7 @@ $ pw test -v -p
  │ │     "version": "HTTP/1.0"
  │ │   }
  │ │
- │ ├ ✓ 200 >> POST https://alemi.dev/dump
+ │ ├ ✓ 200 >> POST https://api.alemi.dev/dump
  │ │   {
  │ │     "body": "{\"text\":\"Lorem ipsum\", \"length\":100}",
  │ │     "headers": {

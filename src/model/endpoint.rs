@@ -28,31 +28,6 @@ pub struct Endpoint {
 	pub extract: Option<StringOr<Extractor>>,
 }
 
-fn replace_recursive(element: toml::Value, from: &str, to: &str) -> toml::Value {
-	match element {
-		toml::Value::Float(x) => toml::Value::Float(x),
-		toml::Value::Integer(x) => toml::Value::Integer(x),
-		toml::Value::Boolean(x) => toml::Value::Boolean(x),
-		toml::Value::Datetime(x) => toml::Value::Datetime(x),
-		toml::Value::String(x) => toml::Value::String(x.replace(from, to)),
-		toml::Value::Array(x) => toml::Value::Array(
-			x.into_iter().map(|x| replace_recursive(x, from, to)).collect()
-		),
-		toml::Value::Table(map) => {
-			let mut out = toml::map::Map::new();
-			for (k, v) in map {
-				let new_v = replace_recursive(v.clone(), from, to);
-				if k.contains(from) {
-					out.insert(k.replace(from, to), new_v);
-				} else {
-					out.insert(k.to_string(), new_v);
-				}
-			}
-			toml::Value::Table(out)
-		},
-	}
-}
-
 impl Endpoint {
 	pub fn fill(mut self, env: &toml::Table) -> Self {
 		let mut vars: HashMap<String, String> = HashMap::default();
@@ -180,6 +155,31 @@ impl Endpoint {
 				}
 			},
 		})
+	}
+}
+
+fn replace_recursive(element: toml::Value, from: &str, to: &str) -> toml::Value {
+	match element {
+		toml::Value::Float(x) => toml::Value::Float(x),
+		toml::Value::Integer(x) => toml::Value::Integer(x),
+		toml::Value::Boolean(x) => toml::Value::Boolean(x),
+		toml::Value::Datetime(x) => toml::Value::Datetime(x),
+		toml::Value::String(x) => toml::Value::String(x.replace(from, to)),
+		toml::Value::Array(x) => toml::Value::Array(
+			x.into_iter().map(|x| replace_recursive(x, from, to)).collect()
+		),
+		toml::Value::Table(map) => {
+			let mut out = toml::map::Map::new();
+			for (k, v) in map {
+				let new_v = replace_recursive(v.clone(), from, to);
+				if k.contains(from) {
+					out.insert(k.replace(from, to), new_v);
+				} else {
+					out.insert(k.to_string(), new_v);
+				}
+			}
+			toml::Value::Table(out)
+		},
 	}
 }
 

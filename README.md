@@ -1,4 +1,10 @@
 # PostWoman
+[![Actions Status](https://github.com/alemidev/postwoman/actions/workflows/test.yml/badge.svg)](https://github.com/alemidev/postwoman/actions)
+[![Crates.io Version](https://img.shields.io/crates/v/postwoman)](https://crates.io/crates/postwoman)
+[![Crates.io Downloads (latest version)](https://img.shields.io/crates/dv/postwoman)](https://crates.io/crates/postwoman)
+[![GitHub last commit](https://img.shields.io/github/last-commit/alemidev/postwoman)](https://github.com/alemidev/postwoman/commits/dev/)
+[![GitHub Issues or Pull Requests](https://img.shields.io/github/issues/alemidev/postwoman)](https://github.com/alemidev/postwoman/issues)
+
 A CLI api tester and request builder, totally not born out of frustration from some other tool...
 
 ## Why
@@ -9,6 +15,8 @@ As an example, most API test tools have features to automatically split down que
 While PostWoman will never be as fully featured as other graphical tools, it doesn't need to be to provide a solid API testing framework.
 
 # Usage
+Install with `cargo install postwoman`
+
 `postwoman` expects a `postwoman.toml` collection in your cwd. A different file or path can be specified with the global `-c` option.
 
 Use `postwoman run <filter>` to send requests to all routes in current config matching given filter (regex). Use `.` as filter to run all.

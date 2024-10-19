@@ -2,14 +2,14 @@ mod client;
 mod endpoint;
 mod extractor;
 
-pub use client::PostWomanClient;
-pub use endpoint::Endpoint;
-pub use extractor::Extractor;
+pub use client::ClientConfig;
+pub use endpoint::EndpointConfig;
+pub use extractor::ExtractorConfig;
 
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PostWomanConfig {
-	pub client: PostWomanClient,
+pub struct PostWomanCollection {
+	pub client: ClientConfig,
 	pub env: toml::Table,
 	// it's weird to name it singular but makes more sense in config
-	pub route: indexmap::IndexMap<String, Endpoint>,
+	pub route: indexmap::IndexMap<String, EndpointConfig>,
 }

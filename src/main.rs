@@ -2,12 +2,11 @@ mod model;
 mod errors;
 mod ext;
 
-use std::sync::Arc;
 use clap::{Parser, Subcommand};
 
-use model::PostWomanConfig;
-
+pub use model::PostWomanCollection;
 pub use errors::PostWomanError;
+
 pub static APP_USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"));
 
 /// API tester and debugger from your CLI
@@ -63,14 +62,6 @@ pub enum PostWomanActions {
 
 const TIMESTAMP_FMT: &str = "%H:%M:%S%.6f"; 
 
-fn print_results(res: String, name: String, before: chrono::DateTime<chrono::Local>, suffix: String) {
-	let after = chrono::Local::now();
-	let elapsed = (after - before).num_milliseconds();
-	let timestamp = after.format(TIMESTAMP_FMT);
-	eprintln!(" + [{timestamp}] {name} {suffix}done in {elapsed}ms", );
-	print!("{}", res);
-}
-
 #[tokio::main]
 async fn main() -> Result<(), PostWomanError> {
 	let args = PostWomanArgs::parse();
@@ -96,11 +87,11 @@ async fn main() -> Result<(), PostWomanError> {
 		PostWomanActions::Run { query, parallel, repeat, debug  } => {
 			let pattern = regex::Regex::new(&query)?;
 			let mut joinset = tokio::task::JoinSet::new();
-			let client = Arc::new(config.client);
-			let env = Arc::new(config.env);
-			for (name, mut endpoint) in config.route {
+			let client = std::sync::Arc::new(collection.client);
+			let env = std::sync::Arc::new(collection.env);
+			for (name, mut endpoint) in collection.route {
 				if pattern.find(&name).is_some() {
-					if debug { endpoint.extract = Some(ext::StringOr::T(model::Extractor::Debug)) };
+					if debug { endpoint.extract = Some(ext::StringOr::T(model::ExtractorConfig::Debug)) };
 					for i in 0..repeat {
 						let suffix = if repeat > 1 {
 							format!("#{} ", i+1)
@@ -136,11 +127,15 @@ async fn main() -> Result<(), PostWomanError> {
 				}
 			}
 		},
-
-		// PostWomanActions::Save { name, url, method, headers, body } => {
-		// 	todo!();
-		// },
 	}
 
 	Ok(())
+}
+
+fn print_results(res: String, name: String, before: chrono::DateTime<chrono::Local>, suffix: String) {
+	let after = chrono::Local::now();
+	let elapsed = (after - before).num_milliseconds();
+	let timestamp = after.format(TIMESTAMP_FMT);
+	eprintln!(" + [{timestamp}] {name} {suffix}done in {elapsed}ms", );
+	print!("{}", res);
 }

@@ -7,11 +7,11 @@ use jaq_interpret::FilterT;
 use crate::{PostWomanError, APP_USER_AGENT};
 
 use crate::ext::{stringify_toml, stringify_json, StringOr};
-use super::{Extractor, PostWomanClient};
+use super::{ExtractorConfig, ClientConfig};
 
 
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
-pub struct Endpoint {
+pub struct EndpointConfig {
 	/// endpoint url, required
 	pub url: String,
 	/// http method for request, default GET
@@ -25,10 +25,10 @@ pub struct Endpoint {
 	/// expected error code, will fail if different
 	pub expect: Option<u16>,
 	/// response extractor
-	pub extract: Option<StringOr<Extractor>>,
+	pub extract: Option<StringOr<ExtractorConfig>>,
 }
 
-impl Endpoint {
+impl EndpointConfig {
 	pub fn fill(mut self, env: &toml::Table) -> Self {
 		let mut vars: HashMap<String, String> = HashMap::default();
 
@@ -80,7 +80,7 @@ impl Endpoint {
 		self
 	}
 
-	pub async fn execute(self, opts: &PostWomanClient) -> Result<String, PostWomanError> {
+	pub async fn execute(self, opts: &ClientConfig) -> Result<String, PostWomanError> {
 		let method = match self.method {
 			Some(m) => reqwest::Method::from_str(&m)?,
 			None => reqwest::Method::GET,
@@ -120,22 +120,22 @@ impl Endpoint {
 		}
 
 		Ok(match self.extract.unwrap_or_default() {
-			StringOr::T(Extractor::Discard) => "".to_string(),
-			StringOr::T(Extractor::Body) => format_body(res).await?,
-			StringOr::T(Extractor::Debug) => {
+			StringOr::T(ExtractorConfig::Discard) => "".to_string(),
+			StringOr::T(ExtractorConfig::Body) => format_body(res).await?,
+			StringOr::T(ExtractorConfig::Debug) => {
 				// TODO needless double format
 				let res_dbg = format!("{res:#?}");
 				let body = format_body(res).await?; 
 				format!("{res_dbg}\nBody: {body}\n")
 			},
-			StringOr::T(Extractor::Header { key }) => res
+			StringOr::T(ExtractorConfig::Header { key }) => res
 				.headers()
 				.get(&key)
 				.ok_or(PostWomanError::HeaderNotFound(key))?
 				.to_str()?
 				.to_string()
 				+ "\n",
-			StringOr::T(Extractor::Regex { pattern }) => {
+			StringOr::T(ExtractorConfig::Regex { pattern }) => {
 				let pattern = regex::Regex::new(&pattern)?;
 				let body = format_body(res).await?;
 				pattern.find(&body)
@@ -145,7 +145,7 @@ impl Endpoint {
 					+ "\n"
 			},
 			// bare string defaults to JQL query
-			StringOr::T(Extractor::JQ { query }) | StringOr::Str(query) => {
+			StringOr::T(ExtractorConfig::JQ { query }) | StringOr::Str(query) => {
 				let json: serde_json::Value = res.json().await?;
 				let selection = jq(&query, json)?;
 				if selection.len() == 1 {

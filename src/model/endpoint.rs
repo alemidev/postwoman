@@ -70,6 +70,13 @@ impl Endpoint {
 					},
 				}
 			}
+			if let Some(query) = self.query {
+				self.query = Some(
+					query.into_iter()
+						.map(|x| x.replace(&k_var, &v))
+						.collect()
+				);
+			}
 			if let Some(headers) = self.headers {
 				self.headers = Some(
 					headers.into_iter()
@@ -101,12 +108,17 @@ impl Endpoint {
 			StringOr::T(json) => serde_json::to_string(&json)?,
 		};
 
+		let mut url = self.url;
+		if let Some(query) = self.query {
+			url = format!("{url}?{}", query.join("&"));
+		}
+
 		let client = reqwest::Client::builder()
 			.user_agent(opts.user_agent.as_deref().unwrap_or(APP_USER_AGENT))
 			.build()?;
 
 		let res = client
-			.request(method, self.url)
+			.request(method, url)
 			.headers(headers)
 			.body(body)
 			.send()

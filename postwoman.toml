@@ -15,6 +15,10 @@ headers = [
 	"Content-Type: application/json",
 	"Authorization: Bearer ${PW_TOKEN}",
 ]
+query = [
+	"body=json",
+	"cache=0"
+]
 body = { hello = "world!", success = true }
 extract = { type = "body" }
 

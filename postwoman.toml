@@ -11,6 +11,10 @@ url = "https://api.alemi.dev/"
 url = "https://api.alemi.dev/look/into/the/void"
 extract = { type = "discard" }
 
+[route.notfound]
+url = "https://api.alemi.dev/not-found"
+expect = 404
+
 [route.debug]
 url = "https://api.alemi.dev/debug"
 method = "PUT"

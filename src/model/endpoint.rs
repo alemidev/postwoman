@@ -21,6 +21,8 @@ pub struct Endpoint {
 	pub headers: Option<Vec<String>>,
 	/// body, optional string
 	pub body: Option<StringOr<toml::Table>>,
+	/// expected error code, will fail if different
+	pub expect: Option<u16>,
 	/// response extractor
 	pub extract: Option<StringOr<Extractor>>,
 }
@@ -135,8 +137,11 @@ impl Endpoint {
 			.headers(headers)
 			.body(body)
 			.send()
-			.await?
-			.error_for_status()?;
+			.await?;
+
+		if res.status().as_u16() != self.expect.unwrap_or(200) {
+			return Err(PostWomanError::UnexpectedStatusCode(res));
+		}
 
 		Ok(match self.extract.unwrap_or_default() {
 			StringOr::T(Extractor::Discard) => "".to_string(),

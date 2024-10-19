@@ -37,6 +37,9 @@ pub enum PostWomanError {
 	#[error("invalid regex: {0:?}")]
 	InvalidRegex(#[from] regex::Error),
 
+	#[error("request didn't match expected status code: {0:?}")]
+	UnexpectedStatusCode(reqwest::Response),
+
 	#[error("invalid Json Query: {0}")]
 	JQError(String),
 

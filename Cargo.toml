@@ -22,6 +22,13 @@ reqwest = { version = "0.12", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "1.0.64"
-tokio = { version = "1.40", features = ["full"] }
+tokio = { version = "1.40", features = ["rt-multi-thread"] }
 toml = { version = "0.8", features = ["preserve_order"] }
 toml_edit = { version = "0.22", features = ["serde"] } # only to pretty print tables ...
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = "symbols"
+panic = "abort"

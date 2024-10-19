@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use base64::{prelude::BASE64_STANDARD, Engine};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 
 use crate::APP_USER_AGENT;
@@ -151,8 +152,8 @@ impl Endpoint {
 		Ok(match self.extract.unwrap_or_default() {
 			StringOr::Str(_query) => todo!(),
 			StringOr::T(Extractor::Discard) => "".to_string(),
-			StringOr::T(Extractor::Debug) => format!("{res:#?}\n"),
-			StringOr::T(Extractor::Body) => res.text().await? + "\n",
+			StringOr::T(Extractor::Debug) => format!("{res:#?}\nBody: ") + &format_body(res).await? + "\n", // ughhh
+			StringOr::T(Extractor::Body) => format_body(res).await?,
 			StringOr::T(Extractor::Header { key }) => res
 				.headers()
 				.get(&key)
@@ -161,6 +162,17 @@ impl Endpoint {
 				.to_string()
 				+ "\n",
 		})
+	}
+}
+
+async fn format_body(res: reqwest::Response) -> Result<String, PostWomanError> {
+	match res.headers().get("Content-Type") {
+		None => Ok(res.text().await? + "\n"),
+		Some(v) => match v.to_str()? {
+			"application/json" => Ok(serde_json::to_string_pretty(&res.json::<serde_json::Value>().await?)? + "\n"),
+			"text/plain" => Ok(res.text().await? + "\n"),
+			_ => Ok(format!("base64({})\n", BASE64_STANDARD.encode(res.bytes().await?))),
+		},
 	}
 }
 

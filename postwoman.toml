@@ -1,0 +1,21 @@
+[client]
+user_agent = "api-tester@alemi.dev"
+
+[route.debug]
+url = "https://api.alemi.dev/debug"
+method = "PUT"
+headers = [
+	"Content-Type: application/json",
+	"Authorization: Bearer ${PW_TOKEN}",
+]
+body = { hello = "world!", success = true }
+extract = { type = "body" }
+
+[route.cookie]
+url = "https://api.alemi.dev/getcookie"
+method = "GET"
+headers = [
+	"Authorization: Basic ...",
+	"Accept: application/json"
+]
+extract = { type = "header", key = "Set-Cookie" }

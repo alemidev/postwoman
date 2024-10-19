@@ -126,7 +126,6 @@ impl Endpoint {
 			.error_for_status()?;
 
 		Ok(match self.extract.unwrap_or_default() {
-			StringOr::Str(_query) => todo!(),
 			StringOr::T(Extractor::Discard) => "".to_string(),
 			StringOr::T(Extractor::Body) => format_body(res).await?,
 			StringOr::T(Extractor::Debug) => {
@@ -142,11 +141,6 @@ impl Endpoint {
 				.to_str()?
 				.to_string()
 				+ "\n",
-			StringOr::T(Extractor::Jql { query }) => {
-				let json: serde_json::Value = res.json().await?;
-				let selection = jql_runner::runner::raw(&query, &json)?;
-				serde_json::to_string_pretty(&selection)?
-			},
 			StringOr::T(Extractor::Regex { pattern }) => {
 				let pattern = regex::Regex::new(&pattern)?;
 				let body = format_body(res).await?;
@@ -154,6 +148,12 @@ impl Endpoint {
 					.ok_or_else(|| PostWomanError::NoMatch(body.clone()))?
 					.as_str()
 					.to_string()
+			},
+			// bare string defaults to JQL query
+			StringOr::T(Extractor::Jql { query }) | StringOr::Str(query) => {
+				let json: serde_json::Value = res.json().await?;
+				let selection = jql_runner::runner::raw(&query, &json)?;
+				serde_json::to_string_pretty(&selection)?
 			},
 		})
 	}

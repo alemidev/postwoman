@@ -52,11 +52,11 @@ pub enum PostWomanActions {
 
 const TIMESTAMP_FMT: &str = "%H:%M:%S%.6f"; 
 
-fn print_results(res: String, name: String, before: chrono::DateTime<chrono::Local>, num: u32) {
+fn print_results(res: String, name: String, before: chrono::DateTime<chrono::Local>, suffix: String) {
 	let after = chrono::Local::now();
 	let elapsed = (after - before).num_milliseconds();
 	let timestamp = after.format(TIMESTAMP_FMT);
-	eprintln!(" + [{timestamp}] {name} #{num} done in {elapsed}ms", );
+	eprintln!(" + [{timestamp}] {name} {suffix}done in {elapsed}ms", );
 	print!("{}", res);
 }
 
@@ -75,17 +75,22 @@ async fn main() -> Result<(), PostWomanError> {
 			for (name, endpoint) in config.route {
 				if pattern.find(&name).is_some() {
 					for i in 0..repeat {
+						let suffix = if repeat > 1 {
+							format!("#{} ", i+1)
+						} else {
+							"".to_string()
+						};
 						let _client = client.clone();
 						let _endpoint = endpoint.clone();
 						let _name = name.clone();
 						let task = async move {
 							let before = chrono::Local::now();
-							eprintln!(" : [{}] sending {_name} #{}...", before.format(TIMESTAMP_FMT), i+1);
+							eprintln!(" : [{}] sending {_name} {suffix}...", before.format(TIMESTAMP_FMT));
 							let res = _endpoint
 								.fill()
 								.execute(&_client)
 								.await;
-							(res, _name, before, i)
+							(res, _name, before, suffix)
 						};
 						if parallel {
 							joinset.spawn(task);

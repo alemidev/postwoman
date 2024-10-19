@@ -1,5 +1,8 @@
 [client]
-user_agent = "api-tester@alemi.dev"
+user_agent = "postwoman@sample/0.2.0"
+
+[route.healthcheck]
+url = "https://api.alemi.dev/"
 
 [route.debug]
 url = "https://api.alemi.dev/debug"
@@ -11,11 +14,20 @@ headers = [
 body = { hello = "world!", success = true }
 extract = { type = "body" }
 
+[route.payload]
+url = "https://api.alemi.dev/debug"
+method = "POST"
+body = '''{
+	"complex": {
+		"json": "payloads",
+		"can": "be",
+		"expressed": "this",
+		"way": true
+	}
+}'''
+extract = { type = "body" }
+
 [route.cookie]
 url = "https://api.alemi.dev/getcookie"
 method = "GET"
-headers = [
-	"Authorization: Basic ...",
-	"Accept: application/json"
-]
 extract = { type = "header", key = "Set-Cookie" }

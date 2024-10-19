@@ -166,6 +166,7 @@ impl Endpoint {
 					.ok_or_else(|| PostWomanError::NoMatch(body.clone()))?
 					.as_str()
 					.to_string()
+					+ "\n"
 			},
 			// bare string defaults to JQL query
 			StringOr::T(Extractor::Jql { query }) | StringOr::Str(query) => {

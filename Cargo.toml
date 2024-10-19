@@ -1,6 +1,9 @@
 [package]
 name = "postwoman"
-version = "0.2.0"
+description = "API tester and debugger for your CLI "
+version = "0.3.0"
+repository = "https://moonlit.technology/alemi/postwoman"
+authors = [ "alemi <me@alemi.dev>" ]
 license = "GPL-3.0-only"
 edition = "2021"
 

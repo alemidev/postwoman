@@ -20,6 +20,10 @@ struct PostWomanArgs {
 	/// action to run
 	#[clap(subcommand)]
 	action: Option<PostWomanActions>,
+
+	/// start a multi-thread runtime, with multiple worker threads
+	#[arg(long, default_value_t = false)]
+	multi_threaded: bool,
 }
 
 #[derive(Subcommand, Debug, Default)]
@@ -62,12 +66,29 @@ pub enum PostWomanActions {
 
 const TIMESTAMP_FMT: &str = "%H:%M:%S%.6f"; 
 
-#[tokio::main]
-async fn main() -> Result<(), PostWomanError> {
+fn main() -> Result<(), PostWomanError> {
 	let args = PostWomanArgs::parse();
 
-	let collection = std::fs::read_to_string(args.collection)?;
-	let config: PostWomanConfig = toml::from_str(&collection)?;
+	let collection_raw = std::fs::read_to_string(&args.collection)?;
+	let collection: PostWomanCollection = toml::from_str(&collection_raw)?;
+
+	if args.multi_threaded {
+		tokio::runtime::Builder::new_multi_thread()
+			.enable_all()
+			.build()
+			.expect("failed creating tokio multi-thread runtime")
+			.block_on(async { run_postwoman(args, collection).await })
+	} else {
+		tokio::runtime::Builder::new_current_thread()
+			.enable_all()
+			.build()
+			.expect("failed creating tokio current-thread runtime")
+			.block_on(async { run_postwoman(args, collection).await })
+	}
+}
+
+async fn run_postwoman(args: PostWomanArgs, collection: PostWomanCollection) -> Result<(), PostWomanError> {
+	let action = args.action.unwrap_or(PostWomanActions::List { verbose: false });
 
 	match args.action.unwrap_or_default() {
 		PostWomanActions::List => {

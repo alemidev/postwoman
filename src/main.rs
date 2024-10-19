@@ -37,6 +37,10 @@ pub enum PostWomanActions {
 		/// repeat request N times
 		#[arg(long, default_value_t = 1)]
 		repeat: u32,
+
+		/// force debug extractor on all routes
+		#[arg(long, default_value_t = false)]
+		debug: bool,
 	},
 
 	/// show all registered routes in current collection
@@ -89,13 +93,14 @@ async fn main() -> Result<(), PostWomanError> {
 				println!("- {name}: \t{} \t{}", endpoint.method.unwrap_or("GET".into()), endpoint.url);
 			}
 		},
-		PostWomanActions::Run { query, parallel, repeat } => {
+		PostWomanActions::Run { query, parallel, repeat, debug  } => {
 			let pattern = regex::Regex::new(&query)?;
 			let mut joinset = tokio::task::JoinSet::new();
 			let client = Arc::new(config.client);
 			let env = Arc::new(config.env);
-			for (name, endpoint) in config.route {
+			for (name, mut endpoint) in config.route {
 				if pattern.find(&name).is_some() {
+					if debug { endpoint.extract = None };
 					for i in 0..repeat {
 						let suffix = if repeat > 1 {
 							format!("#{} ", i+1)

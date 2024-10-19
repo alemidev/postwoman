@@ -186,7 +186,7 @@ async fn format_body(res: reqwest::Response) -> Result<String, PostWomanError> {
 		None => Ok(res.text().await? + "\n"),
 		Some(v) => match v.to_str()? {
 			"application/json" => Ok(serde_json::to_string_pretty(&res.json::<serde_json::Value>().await?)? + "\n"),
-			"text/plain" => Ok(res.text().await? + "\n"),
+			"text/plain" | "text/html" => Ok(res.text().await? + "\n"),
 			_ => Ok(format!("base64({})\n", BASE64_STANDARD.encode(res.bytes().await?))),
 		},
 	}

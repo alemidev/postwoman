@@ -1,11 +1,13 @@
 mod model;
+mod errors;
 
 use std::sync::Arc;
-
 use clap::{Parser, Subcommand};
-use model::{PostWomanConfig, PostWomanError};
 
-static APP_USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"));
+use model::PostWomanConfig;
+
+pub use errors::PostWomanError;
+pub static APP_USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"));
 
 /// API tester and debugger from your CLI
 #[derive(Parser, Debug)]

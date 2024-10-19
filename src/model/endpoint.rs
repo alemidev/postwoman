@@ -1,48 +1,12 @@
 use std::str::FromStr;
 
 use base64::{prelude::BASE64_STANDARD, Engine};
-use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
+use http::{HeaderMap, HeaderName, HeaderValue};
 
-use crate::APP_USER_AGENT;
+use crate::{PostWomanError, APP_USER_AGENT};
 
-#[derive(Debug, thiserror::Error)]
-pub enum PostWomanError {
-	#[error("network error: {0:?}")]
-	Request(#[from] reqwest::Error),
+use super::{Extractor, PostWomanClient, StringOr};
 
-	#[error("invalid method: {0:?}")]
-	InvalidMethod(#[from] http::method::InvalidMethod),
-
-	#[error("invalid header name: {0:?}")]
-	InvalidHeaderName(#[from] reqwest::header::InvalidHeaderName),
-
-	#[error("invalid header value: {0:?}")]
-	InvalidHeaderValue(#[from] reqwest::header::InvalidHeaderValue),
-
-	#[error("contains Unprintable characters: {0:?}")]
-	Unprintable(#[from] reqwest::header::ToStrError),
-
-	#[error("header '{0}' not found in response")]
-	HeaderNotFound(String),
-
-	#[error("invalid header: '{0}'")]
-	InvalidHeader(String),
-
-	#[error("error opening collection: {0:?}")]
-	ErrorOpeningCollection(#[from] std::io::Error),
-
-	#[error("collection is not valid toml: {0:?}")]
-	InvalidCollection(#[from] toml::de::Error),
-
-	#[error("could not represent collection: {0:?}")] // should never happen
-	ErrorSerializingInternallyCollection(#[from] toml_edit::ser::Error),
-
-	#[error("invalid json payload: {0:?}")]
-	InvalidJson(#[from] serde_json::Error),
-
-	#[error("invalid regex: {0:?}")]
-	InvalidRegex(#[from] regex::Error),
-}
 
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Endpoint {
@@ -174,41 +138,4 @@ async fn format_body(res: reqwest::Response) -> Result<String, PostWomanError> {
 			_ => Ok(format!("base64({})\n", BASE64_STANDARD.encode(res.bytes().await?))),
 		},
 	}
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(untagged)]
-pub enum StringOr<T> {
-	Str(String),
-	T(T),
-}
-
-impl<T: Default> Default for StringOr<T> {
-	fn default() -> Self {
-		Self::T(T::default())
-	}
-}
-
-#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
-#[serde(tag = "type", rename_all = "lowercase")]
-pub enum Extractor {
-	#[default]
-	Debug,
-	Body,
-	Discard,
-	// JQL { query: String },
-	// Regex { pattern: String },
-	Header { key: String },
-}
-
-#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PostWomanClient {
-	pub user_agent: Option<String>,
-}
-
-#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PostWomanConfig {
-	pub client: PostWomanClient,
-	// it's weird to name it singular but makes more sense in config
-	pub route: indexmap::IndexMap<String, Endpoint>,
 }

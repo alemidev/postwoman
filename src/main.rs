@@ -55,7 +55,7 @@ async fn main() -> Result<(), PostWomanError> {
 					eprintln!("> executing {name}");
 					let res = endpoint
 						.fill()
-						.execute()
+						.execute(&config.client)
 						.await?;
 					println!("{res}");
 				}

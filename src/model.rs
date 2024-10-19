@@ -1,6 +1,8 @@
 use std::str::FromStr;
 
-use reqwest::{header::{HeaderMap, HeaderName, HeaderValue}};
+use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
+
+use crate::APP_USER_AGENT;
 
 #[derive(Debug, thiserror::Error)]
 pub enum PostWomanError {
@@ -115,7 +117,7 @@ impl Endpoint {
 		self
 	}
 
-	pub async fn execute(self) -> Result<String, PostWomanError> {
+	pub async fn execute(self, opts: &PostWomanClient) -> Result<String, PostWomanError> {
 		let method = match self.method {
 			Some(m) => reqwest::Method::from_str(&m)?,
 			None => reqwest::Method::GET,
@@ -133,7 +135,12 @@ impl Endpoint {
 			StringOr::Str(x) => x,
 			StringOr::T(json) => serde_json::to_string(&json)?,
 		};
-		let res = reqwest::Client::new()
+
+		let client = reqwest::Client::builder()
+			.user_agent(opts.user_agent.as_deref().unwrap_or(APP_USER_AGENT))
+			.build()?;
+
+		let res = client
 			.request(method, self.url)
 			.headers(headers)
 			.body(body)
@@ -142,7 +149,7 @@ impl Endpoint {
 			.error_for_status()?;
 
 		Ok(match self.extract.unwrap_or_default() {
-			StringOr::Str(query) => todo!(),
+			StringOr::Str(_query) => todo!(),
 			StringOr::T(Extractor::Debug) => format!("{res:#?}"),
 			StringOr::T(Extractor::Body) => res.text().await?,
 			StringOr::T(Extractor::Header { key }) => res

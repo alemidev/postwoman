@@ -1,5 +1,6 @@
 mod model;
 mod errors;
+mod ext;
 
 use std::sync::Arc;
 use clap::{Parser, Subcommand};
@@ -19,10 +20,10 @@ struct PostWomanArgs {
 
 	/// action to run
 	#[clap(subcommand)]
-	action: PostWomanActions,
+	action: Option<PostWomanActions>,
 }
 
-#[derive(Subcommand, Debug)]
+#[derive(Subcommand, Debug, Default)]
 pub enum PostWomanActions {
 	/// execute specific endpoint requests
 	Run {
@@ -37,6 +38,10 @@ pub enum PostWomanActions {
 		#[arg(long, default_value_t = 1)]
 		repeat: u32,
 	},
+
+	/// show all registered routes in current collection
+	#[default]
+	List,
 
 	// Save {
 	// 	/// name for new endpoint
@@ -69,7 +74,21 @@ async fn main() -> Result<(), PostWomanError> {
 	let collection = std::fs::read_to_string(args.collection)?;
 	let config: PostWomanConfig = toml::from_str(&collection)?;
 
-	match args.action {
+	match args.action.unwrap_or_default() {
+		PostWomanActions::List => {
+			let ua = config.client.user_agent.unwrap_or(APP_USER_AGENT.to_string());
+			println!("> {ua}");
+
+			for (key, value) in config.env {
+				println!("+ {key}: {}", ext::stringify_toml(&value));
+			}
+
+			println!();
+
+			for (name, endpoint) in config.route {
+				println!("- {name}: \t{} \t{}", endpoint.method.unwrap_or("GET".into()), endpoint.url);
+			}
+		},
 		PostWomanActions::Run { query, parallel, repeat } => {
 			let pattern = regex::Regex::new(&query)?;
 			let mut joinset = tokio::task::JoinSet::new();

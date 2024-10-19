@@ -3,8 +3,8 @@
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum Extractor {
 	#[default]
-	Debug,
 	Body,
+	Debug,
 	Discard,
 	JQ { query: String },
 	Regex { pattern: String },

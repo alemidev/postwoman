@@ -109,5 +109,7 @@ async fn main() -> Result<(), PostWomanError> {
 		// },
 	}
 
+	eprintln!();
+
 	Ok(())
 }

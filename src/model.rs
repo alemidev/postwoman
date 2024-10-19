@@ -150,7 +150,8 @@ impl Endpoint {
 
 		Ok(match self.extract.unwrap_or_default() {
 			StringOr::Str(_query) => todo!(),
-			StringOr::T(Extractor::Debug) => format!("{res:#?}"),
+			StringOr::T(Extractor::Discard) => "".to_string(),
+			StringOr::T(Extractor::Debug) => format!("{res:#?}\n"),
 			StringOr::T(Extractor::Body) => res.text().await?,
 			StringOr::T(Extractor::Header { key }) => res
 				.headers()
@@ -181,6 +182,7 @@ pub enum Extractor {
 	#[default]
 	Debug,
 	Body,
+	Discard,
 	// JQL { query: String },
 	// Regex { pattern: String },
 	Header { key: String },

@@ -56,8 +56,8 @@ fn print_results(res: String, name: String, before: chrono::DateTime<chrono::Utc
 	let after = chrono::Utc::now();
 	let elapsed = (after - before).num_milliseconds();
 	let timestamp = after.format(TIMESTAMP_FMT);
-	eprintln!(" + [{timestamp}] {name} done in {elapsed}ms:", );
-	println!("{}", res);
+	eprintln!(" + [{timestamp}] {name} done in {elapsed}ms", );
+	print!("{}", res);
 }
 
 #[tokio::main]

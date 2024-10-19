@@ -4,6 +4,10 @@ user_agent = "postwoman@sample/0.2.0"
 [route.healthcheck]
 url = "https://api.alemi.dev/"
 
+[route.benchmark]
+url = "https://api.alemi.dev/look/into/the/void"
+extract = { type = "discard" }
+
 [route.debug]
 url = "https://api.alemi.dev/debug"
 method = "PUT"

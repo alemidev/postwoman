@@ -152,13 +152,14 @@ impl Endpoint {
 			StringOr::Str(_query) => todo!(),
 			StringOr::T(Extractor::Discard) => "".to_string(),
 			StringOr::T(Extractor::Debug) => format!("{res:#?}\n"),
-			StringOr::T(Extractor::Body) => res.text().await?,
+			StringOr::T(Extractor::Body) => res.text().await? + "\n",
 			StringOr::T(Extractor::Header { key }) => res
 				.headers()
 				.get(&key)
 				.ok_or(PostWomanError::HeaderNotFound(key))?
 				.to_str()?
-				.to_string(),
+				.to_string()
+				+ "\n",
 		})
 	}
 }

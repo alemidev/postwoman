@@ -2,6 +2,7 @@ use std::{collections::HashMap, str::FromStr};
 
 use base64::{prelude::BASE64_STANDARD, Engine};
 use http::{HeaderMap, HeaderName, HeaderValue};
+use jaq_interpret::FilterT;
 
 use crate::{PostWomanError, APP_USER_AGENT};
 
@@ -49,7 +50,7 @@ fn replace_recursive(element: toml::Value, from: &str, to: &str) -> toml::Value 
 	}
 }
 
-fn stringify(v: &toml::Value) -> String {
+fn stringify_toml(v: &toml::Value) -> String {
 	match v {
 		toml::Value::Boolean(x) => x.to_string(),
 		toml::Value::Integer(x) => x.to_string(),
@@ -61,11 +62,26 @@ fn stringify(v: &toml::Value) -> String {
 	}
 }
 
+fn stringify_json(v: &serde_json::Value) -> String {
+	match v {
+		serde_json::Value::Null => "null".to_string(),
+		serde_json::Value::Bool(x) => x.to_string(),
+		serde_json::Value::Number(x) => x.to_string(),
+		serde_json::Value::String(x) => x.clone(),
+		serde_json::Value::Array(x) => serde_json::to_string(&x).unwrap_or_default(),
+		serde_json::Value::Object(x) => serde_json::to_string(&x).unwrap_or_default(),
+	}
+}
+
 impl Endpoint {
 	pub fn fill(mut self, env: &toml::Table) -> Self {
-		let mut vars: HashMap<String, String> = env.into_iter()
-			.map(|(k, v)| (k.clone(), stringify(v)))
-			.collect();
+		let mut vars: HashMap<String, String> = HashMap::default();
+
+		vars.insert("POSTWOMAN_TIMESTAMP".to_string(), chrono::Local::now().timestamp().to_string());
+
+		for (k, v) in env {
+			vars.insert(k.to_string(), stringify_toml(v));
+		}
 
 		for (k, v) in std::env::vars() {
 			vars.insert(k, v);
@@ -172,8 +188,12 @@ impl Endpoint {
 			// bare string defaults to JQL query
 			StringOr::T(Extractor::Jql { query }) | StringOr::Str(query) => {
 				let json: serde_json::Value = res.json().await?;
-				let selection = jql_runner::runner::raw(&query, &json)?;
-				serde_json::to_string_pretty(&selection)?
+				let selection = jq(&query, json)?;
+				if selection.len() == 1 {
+					stringify_json(&selection[0]) + "\n"
+				} else {
+					serde_json::to_string_pretty(&selection)? + "\n"
+				}
 			},
 		})
 	}
@@ -188,4 +208,25 @@ async fn format_body(res: reqwest::Response) -> Result<String, PostWomanError> {
 			_ => Ok(format!("base64({})\n", BASE64_STANDARD.encode(res.bytes().await?))),
 		},
 	}
+}
+
+fn jq(query: &str, value: serde_json::Value) -> Result<Vec<serde_json::Value>, PostWomanError> {
+	// TODO am i not getting jaq api? or is it just this weird????
+	let mut defs = jaq_interpret::ParseCtx::new(Vec::new());
+	let (filter, errs) = jaq_parse::parse(query, jaq_parse::main());
+	let Some(filter) = filter else {
+		return Err(PostWomanError::JQError(
+			errs.into_iter().map(|x| format!("{x:?}")).collect::<Vec<String>>().join(", ")
+		));
+	};
+	let out: Vec<serde_json::Value> = defs
+		.compile(filter)
+		.run((
+			jaq_interpret::Ctx::new([], &jaq_interpret::RcIter::new(core::iter::empty())),
+			jaq_interpret::Val::from(value)
+		))
+		.filter_map(|x| Some(x.ok()?.into()))
+		.collect();
+
+	Ok(out)
 }

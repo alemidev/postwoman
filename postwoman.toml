@@ -23,7 +23,7 @@ query = [
 	"cache=0"
 ]
 body = { hello = "world!", success = true }
-extract = { type = "body" }
+extract = { type = "jql", query = ".path" }
 
 [route.payload]
 url = "https://api.alemi.dev/debug"

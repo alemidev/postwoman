@@ -37,8 +37,8 @@ pub enum PostWomanError {
 	#[error("invalid regex: {0:?}")]
 	InvalidRegex(#[from] regex::Error),
 
-	#[error("invalid JQL query: {0:?}")]
-	JQLError(#[from] jql_runner::errors::JqlRunnerError),
+	#[error("invalid Json Query: {0}")]
+	JQError(String),
 
 	#[error("regex failed matching in content: {0}")]
 	NoMatch(String),

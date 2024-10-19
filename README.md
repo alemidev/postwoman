@@ -96,41 +96,27 @@ $ postwoman
 Run all endpoints matching `.` (aka all of them)
 ```
 $ postwoman run .
- : [22:20:53.112717] sending healthcheck ...
- + [22:20:53.250755] healthcheck done in 138ms
-Response {
-    url: "https://api.alemi.dev/",
-    status: 200,
-    headers: {
-        "server": "nginx/1.26.2",
-        "date": "Sat, 19 Oct 2024 20:20:53 GMT",
-        "content-type": "application/json",
-        "content-length": "161",
-        "connection": "keep-alive",
-        "vary": "Accept-Encoding",
-        "access-control-allow-origin": "*",
-    },
-}
-Body: {
+ : [22:27:17.960461] sending healthcheck ...
+ + [22:27:18.109843] healthcheck done in 149ms
+{
   "example": [
     "https://api.alemi.dev/debug",
     "https://api.alemi.dev/msg",
     "https://api.alemi.dev/mumble/ping"
   ],
-  "time": "Saturday, 19-Oct-2024 20:20:53 GMT",
+  "time": "Saturday, 19-Oct-2024 20:27:18 GMT",
   "up": true
 }
-
- : [22:20:53.250802] sending debug ...
- + [22:20:53.369298] debug done in 118ms
+ : [22:27:18.109924] sending debug ...
+ + [22:27:18.268383] debug done in 158ms
 /debug?body=json&cache=0
- : [22:20:53.369352] sending benchmark ...
- + [22:20:53.482720] benchmark done in 113ms
- : [22:20:53.482745] sending notfound ...
- + [22:20:53.593134] notfound done in 110ms
+ : [22:27:18.268477] sending benchmark ...
+ + [22:27:18.422707] benchmark done in 154ms
+ : [22:27:18.422775] sending notfound ...
+ + [22:27:18.575942] notfound done in 153ms
 nginx/1.26.2
- : [22:20:53.593163] sending payload ...
- + [22:20:53.709245] payload done in 116ms
+ : [22:27:18.576010] sending payload ...
+ + [22:27:18.732582] payload done in 156ms
 {
   "body": "{\n\t\"complex\": {\n\t\t\"json\": \"payloads\",\n\t\t\"can\": \"be\",\n\t\t\"expressed\": \"this\",\n\t\t\"way\": true\n\t}\n}",
   "headers": {
@@ -142,15 +128,41 @@ nginx/1.26.2
     "user-agent": "postwoman@sample/0.2.0",
     "x-forwarded-proto": "https",
     "x-real-ip": "93.34.149.115",
-    "x-real-port": 46437,
+    "x-real-port": 46695,
     "x-user-agent": "postwoman@sample/0.2.0"
   },
   "method": "POST",
   "path": "/debug",
-  "time": 1729369253.6897264,
+  "time": 1729369638.7079802,
   "version": "HTTP/1.0"
 }
- : [22:20:53.709276] sending cookie ...
- + [22:20:53.822684] cookie done in 113ms
+ : [22:27:18.732676] sending cookie ...
+ + [22:27:18.886862] cookie done in 154ms
 SGF2ZSBhIENvb2tpZSE=
+```
+
+Debug a specific route passing `--debug`:
+```
+$ postwoman run notfound --debug
+ : [22:26:59.045642] sending notfound ...
+ + [22:26:59.220103] notfound done in 174ms
+Response {
+    url: "https://api.alemi.dev/not-found",
+    status: 404,
+    headers: {
+        "server": "nginx/1.26.2",
+        "date": "Sat, 19 Oct 2024 20:26:59 GMT",
+        "content-type": "text/html",
+        "content-length": "153",
+        "connection": "keep-alive",
+        "vary": "Accept-Encoding",
+    },
+}
+Body: <html>
+<head><title>404 Not Found</title></head>
+<body>
+<center><h1>404 Not Found</h1></center>
+<hr><center>nginx/1.26.2</center>
+</body>
+</html>
 ```

@@ -50,29 +50,6 @@ fn replace_recursive(element: toml::Value, from: &str, to: &str) -> toml::Value 
 	}
 }
 
-fn stringify_toml(v: &toml::Value) -> String {
-	match v {
-		toml::Value::Boolean(x) => x.to_string(),
-		toml::Value::Integer(x) => x.to_string(),
-		toml::Value::Float(x) => x.to_string(),
-		toml::Value::String(x) => x.clone(),
-		toml::Value::Datetime(x) => x.to_string(),
-		toml::Value::Array(x) => serde_json::to_string(&x).unwrap_or_default(),
-		toml::Value::Table(x) => serde_json::to_string(&x).unwrap_or_default(),
-	}
-}
-
-fn stringify_json(v: &serde_json::Value) -> String {
-	match v {
-		serde_json::Value::Null => "null".to_string(),
-		serde_json::Value::Bool(x) => x.to_string(),
-		serde_json::Value::Number(x) => x.to_string(),
-		serde_json::Value::String(x) => x.clone(),
-		serde_json::Value::Array(x) => serde_json::to_string(&x).unwrap_or_default(),
-		serde_json::Value::Object(x) => serde_json::to_string(&x).unwrap_or_default(),
-	}
-}
-
 impl Endpoint {
 	pub fn fill(mut self, env: &toml::Table) -> Self {
 		let mut vars: HashMap<String, String> = HashMap::default();
@@ -80,7 +57,7 @@ impl Endpoint {
 		vars.insert("POSTWOMAN_TIMESTAMP".to_string(), chrono::Local::now().timestamp().to_string());
 
 		for (k, v) in env {
-			vars.insert(k.to_string(), stringify_toml(v));
+			vars.insert(k.to_string(), crate::ext::stringify_toml(v));
 		}
 
 		for (k, v) in std::env::vars() {
@@ -190,7 +167,7 @@ impl Endpoint {
 				let json: serde_json::Value = res.json().await?;
 				let selection = jq(&query, json)?;
 				if selection.len() == 1 {
-					stringify_json(&selection[0]) + "\n"
+					crate::ext::stringify_json(&selection[0]) + "\n"
 				} else {
 					serde_json::to_string_pretty(&selection)? + "\n"
 				}

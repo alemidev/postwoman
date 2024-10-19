@@ -7,20 +7,14 @@ pub enum PostWomanError {
 	#[error("invalid method: {0:?}")]
 	InvalidMethod(#[from] http::method::InvalidMethod),
 
-	#[error("invalid header name: {0:?}")]
-	InvalidHeaderName(#[from] reqwest::header::InvalidHeaderName),
-
-	#[error("invalid header value: {0:?}")]
-	InvalidHeaderValue(#[from] reqwest::header::InvalidHeaderValue),
+	#[error("invalid header: {0:?}")]
+	InvalidHeader(#[from] InvalidHeaderError),
 
 	#[error("contains Unprintable characters: {0:?}")]
 	Unprintable(#[from] reqwest::header::ToStrError),
 
 	#[error("header '{0}' not found in response")]
 	HeaderNotFound(String),
-
-	#[error("invalid header: '{0}'")]
-	InvalidHeader(String),
 
 	#[error("error opening collection: {0:?}")]
 	ErrorOpeningCollection(#[from] std::io::Error),
@@ -45,4 +39,14 @@ pub enum PostWomanError {
 
 	#[error("regex failed matching in content: {0}")]
 	NoMatch(String),
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum InvalidHeaderError {
+	#[error("invalid header name: {0:?}")]
+	Name(#[from] http::header::InvalidHeaderName),
+	#[error("invalid header value: {0:?}")]
+	Value(#[from] http::header::InvalidHeaderValue),
+	#[error("invalid header format: {0}")]
+	Format(String)
 }

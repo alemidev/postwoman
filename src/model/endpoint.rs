@@ -1,9 +1,12 @@
 use std::{collections::HashMap, str::FromStr};
 
 use base64::{prelude::BASE64_STANDARD, Engine};
+use http::header::{InvalidHeaderName, InvalidHeaderValue};
+use http::method::InvalidMethod;
 use http::{HeaderMap, HeaderName, HeaderValue};
 use jaq_interpret::FilterT;
 
+use crate::errors::InvalidHeaderError;
 use crate::{PostWomanError, APP_USER_AGENT};
 
 use crate::ext::{stringify_toml, stringify_json, StringOr};
@@ -29,6 +32,41 @@ pub struct EndpointConfig {
 }
 
 impl EndpointConfig {
+	pub fn body(&mut self) -> Result<String, serde_json::Error> {
+		match self.body.take().unwrap_or_default() {
+			StringOr::Str(x) => Ok(x.clone()),
+			StringOr::T(json) => Ok(serde_json::to_string(&json)?),
+		}
+	}
+
+	pub fn method(&mut self) -> Result<reqwest::Method, InvalidMethod> {
+		match self.method {
+			Some(ref m) => Ok(reqwest::Method::from_str(m)?),
+			None => Ok(reqwest::Method::GET),
+		}
+	}
+
+	pub fn headers(&mut self) -> Result<HeaderMap, InvalidHeaderError> {
+		let mut headers = HeaderMap::default();
+		for header in self.headers.take().unwrap_or_default() {
+			let (k, v) = header.split_once(':')
+				.ok_or_else(|| InvalidHeaderError::Format(header.clone()))?;
+			headers.insert(
+				HeaderName::from_str(k)?,
+				HeaderValue::from_str(v)?
+			);
+		}
+		Ok(headers)
+	}
+
+	pub fn url(&mut self) -> String {
+		let mut url = self.url.clone();
+		if let Some(query) = self.query.take() {
+			url = format!("{url}?{}", query.join("&"));
+		}
+		url
+	}
+
 	pub fn fill(mut self, env: &toml::Table) -> Self {
 		let mut vars: HashMap<String, String> = HashMap::default();
 
@@ -80,29 +118,11 @@ impl EndpointConfig {
 		self
 	}
 
-	pub async fn execute(self, opts: &ClientConfig) -> Result<String, PostWomanError> {
-		let method = match self.method {
-			Some(m) => reqwest::Method::from_str(&m)?,
-			None => reqwest::Method::GET,
-		};
-		let mut headers = HeaderMap::default();
-		for header in self.headers.unwrap_or_default() {
-			let (k, v) = header.split_once(':')
-				.ok_or_else(|| PostWomanError::InvalidHeader(header.clone()))?;
-			headers.insert(
-				HeaderName::from_str(k)?,
-				HeaderValue::from_str(v)?
-			);
-		}
-		let body = match self.body.unwrap_or_default() {
-			StringOr::Str(x) => x,
-			StringOr::T(json) => serde_json::to_string(&json)?,
-		};
-
-		let mut url = self.url;
-		if let Some(query) = self.query {
-			url = format!("{url}?{}", query.join("&"));
-		}
+	pub async fn execute(mut self, opts: &ClientConfig) -> Result<String, PostWomanError> {
+		let url = self.url();
+		let body = self.body()?;
+		let method = self.method()?;
+		let headers = self.headers()?;
 
 		let client = reqwest::Client::builder()
 			.user_agent(opts.user_agent.as_deref().unwrap_or(APP_USER_AGENT))
@@ -110,6 +130,7 @@ impl EndpointConfig {
 			.redirect(opts.redirects.map(reqwest::redirect::Policy::limited).unwrap_or(reqwest::redirect::Policy::none()))
 			.danger_accept_invalid_certs(opts.accept_invalid_certs.unwrap_or(false))
 			.build()?;
+
 
 		let res = client
 			.request(method, url)

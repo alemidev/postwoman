@@ -6,7 +6,7 @@ pub enum Extractor {
 	Debug,
 	Body,
 	Discard,
-	Jql { query: String },
+	JQ { query: String },
 	Regex { pattern: String },
 	Header { key: String },
 }

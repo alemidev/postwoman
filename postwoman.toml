@@ -1,34 +1,37 @@
-[client]
+[client] # HTTP client configuration
 user_agent = "postwoman@sample/0.2.0"
 
-[env]
+[env] # these will be replaced in routes options. environment vars overrule these
 PW_TOKEN = "set-me-as-and-environment-variable!"
 
-[route.healthcheck]
+
+
+[route.healthcheck] # the simplest possible route: just name and url
 url = "https://api.alemi.dev/"
-
-[route.benchmark]
-url = "https://api.alemi.dev/look/into/the/void"
-extract = { type = "discard" }
-
-[route.notfound]
-url = "https://api.alemi.dev/not-found"
-expect = 404
-extract = { type = "regex", pattern = 'nginx/[0-9\.]+' }
 
 [route.debug]
 url = "https://api.alemi.dev/debug"
-method = "PUT"
-headers = [
-	"Content-Type: application/json",
-	"Authorization: Bearer ${PW_TOKEN}",
-]
-query = [
+method = "PUT" # specify request method
+query = [ # specify query parameters in a more friendly way
 	"body=json",
 	"cache=0"
 ]
-body = { hello = "world!", success = true }
-extract = { type = "jql", query = ".path" }
+headers = [ # add custom headers to request
+	"Content-Type: application/json",
+	"Authorization: Bearer ${PW_TOKEN}",
+]
+body = { hello = "world!", success = true } # body can be a bare string, or an inline table (will be converted to json)
+extract = ".path" # extract from json responses with JQ syntax
+# note that a bare extractor string is equivalent to `{ type = "jq", query = ".path" }`
+
+[route.benchmark]
+url = "https://api.alemi.dev/look/into/the/void"
+extract = { type = "discard" } # if you don't care about the output, discard it!
+
+[route.notfound]
+url = "https://api.alemi.dev/not-found"
+expect = 404 # it's possible to specify expected status code, will fail if doesn't match
+extract = { type = "regex", pattern = 'nginx/[0-9\.]+' } # extract from response with regex
 
 [route.payload]
 url = "https://api.alemi.dev/debug"
@@ -41,9 +44,9 @@ body = '''{
 		"way": true
 	}
 }'''
-extract = { type = "body" }
+extract = { type = "body" } # get the whole response body, this is the default extractor
 
 [route.cookie]
 url = "https://api.alemi.dev/getcookie"
 method = "GET"
-extract = { type = "header", key = "Set-Cookie" }
+extract = { type = "header", key = "Set-Cookie" } # get a specific response header, ignoring body

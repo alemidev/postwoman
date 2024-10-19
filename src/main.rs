@@ -27,7 +27,7 @@ struct PostWomanArgs {
 pub enum PostWomanActions {
 	/// execute specific endpoint requests
 	Run {
-		/// regex query filter, run all with '.*'
+		/// regex query filter, run all with '.'
 		query: String,
 
 		/// run requests in parallel

@@ -169,7 +169,7 @@ impl Endpoint {
 					+ "\n"
 			},
 			// bare string defaults to JQL query
-			StringOr::T(Extractor::Jql { query }) | StringOr::Str(query) => {
+			StringOr::T(Extractor::JQ { query }) | StringOr::Str(query) => {
 				let json: serde_json::Value = res.json().await?;
 				let selection = jq(&query, json)?;
 				if selection.len() == 1 {

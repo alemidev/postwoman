@@ -106,6 +106,9 @@ impl EndpointConfig {
 
 		let client = reqwest::Client::builder()
 			.user_agent(opts.user_agent.as_deref().unwrap_or(APP_USER_AGENT))
+			.timeout(std::time::Duration::from_secs(opts.timeout.unwrap_or(30)))
+			.redirect(opts.redirects.map(reqwest::redirect::Policy::limited).unwrap_or(reqwest::redirect::Policy::none()))
+			.danger_accept_invalid_certs(opts.accept_invalid_certs.unwrap_or(false))
 			.build()?;
 
 		let res = client

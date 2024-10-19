@@ -85,7 +85,7 @@ fn replace_recursive(element: toml::Value, from: &str, to: &str) -> toml::Value 
 impl Endpoint {
 	pub fn fill(mut self) -> Self {
 		for (k, v) in std::env::vars() {
-			let k_var = format!("${k}");
+			let k_var = format!("${{{k}}}");
 			self.url = self.url.replace(&k_var, &v);
 			if let Some(method) = self.method {
 				self.method = Some(method.replace(&k_var, &v));

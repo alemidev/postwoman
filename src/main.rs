@@ -26,7 +26,7 @@ struct PostWomanArgs {
 	multi_threaded: bool,
 }
 
-#[derive(Subcommand, Debug, Default)]
+#[derive(Subcommand, Debug)]
 pub enum PostWomanActions {
 	/// execute specific endpoint requests
 	Run {
@@ -47,21 +47,11 @@ pub enum PostWomanActions {
 	},
 
 	/// show all registered routes in current collection
-	#[default]
-	List,
-
-	// Save {
-	// 	/// name for new endpoint
-	// 	name: String,
-	// 	/// url of endpoint
-	// 	url: String,
-	// 	/// method
-	// 	method: Option<String>,
-	// 	/// headers
-	// 	headers: Vec<String>,
-	// 	/// body
-	// 	body: Option<String>,
-	// }
+	List {
+		/// show verbose details for each route
+		#[arg(short = 'V', long, default_value_t = false)]
+		verbose: bool,
+	},
 }
 
 const TIMESTAMP_FMT: &str = "%H:%M:%S%.6f"; 
@@ -90,19 +80,34 @@ fn main() -> Result<(), PostWomanError> {
 async fn run_postwoman(args: PostWomanArgs, collection: PostWomanCollection) -> Result<(), PostWomanError> {
 	let action = args.action.unwrap_or(PostWomanActions::List { verbose: false });
 
-	match args.action.unwrap_or_default() {
-		PostWomanActions::List => {
-			let ua = config.client.user_agent.unwrap_or(APP_USER_AGENT.to_string());
+	match action {
+		PostWomanActions::List { verbose } => {
+			let ua = collection.client.user_agent.unwrap_or(APP_USER_AGENT.to_string());
 			println!("> {ua}");
 
-			for (key, value) in config.env {
+			for (key, value) in collection.env {
 				println!("+ {key}: {}", ext::stringify_toml(&value));
 			}
 
 			println!();
 
-			for (name, endpoint) in config.route {
-				println!("- {name}: \t{} \t{}", endpoint.method.unwrap_or("GET".into()), endpoint.url);
+			for (name, mut endpoint) in collection.route {
+				println!("- {name}: \t{} \t{}", endpoint.method.as_deref().unwrap_or("GET"), endpoint.url);
+				if verbose {
+					if let Some(ref query) = endpoint.query {
+						for query in query {
+							println!(" |? {query}");
+						}
+					}
+					if let Some(ref headers) = endpoint.headers {
+						for header in headers {
+							println!(" |: {header}");
+						}
+					}
+					if let Ok(body) = endpoint.body() {
+						println!(" |> {body}");
+					}
+				}
 			}
 		},
 		PostWomanActions::Run { query, parallel, repeat, debug  } => {

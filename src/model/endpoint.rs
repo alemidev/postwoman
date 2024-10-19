@@ -1,7 +1,6 @@
 use std::{collections::HashMap, str::FromStr};
 
 use base64::{prelude::BASE64_STANDARD, Engine};
-use http::header::{InvalidHeaderName, InvalidHeaderValue};
 use http::method::InvalidMethod;
 use http::{HeaderMap, HeaderName, HeaderValue};
 use jaq_interpret::FilterT;
@@ -33,9 +32,10 @@ pub struct EndpointConfig {
 
 impl EndpointConfig {
 	pub fn body(&mut self) -> Result<String, serde_json::Error> {
-		match self.body.take().unwrap_or_default() {
-			StringOr::Str(x) => Ok(x.clone()),
-			StringOr::T(json) => Ok(serde_json::to_string(&json)?),
+		match self.body.take() {
+			None => Ok("".to_string()),
+			Some(StringOr::Str(x)) => Ok(x.clone()),
+			Some(StringOr::T(json)) => Ok(serde_json::to_string(&json)?),
 		}
 	}
 

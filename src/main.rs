@@ -104,8 +104,12 @@ async fn run_postwoman(args: PostWomanArgs, collection: PostWomanCollection) -> 
 							println!(" |: {header}");
 						}
 					}
-					if let Ok(body) = endpoint.body() {
-						println!(" |> {body}");
+					if let Some(ref _x) = endpoint.body {
+						if let Ok(body) = endpoint.body() {
+							println!(" |> {body}");
+						} else {
+							println!(" |> [!] invalid body");
+						}
 					}
 				}
 			}

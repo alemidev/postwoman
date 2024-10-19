@@ -1,6 +1,9 @@
 [client]
 user_agent = "postwoman@sample/0.2.0"
 
+[env]
+PW_TOKEN = "set-me-as-and-environment-variable!"
+
 [route.healthcheck]
 url = "https://api.alemi.dev/"
 

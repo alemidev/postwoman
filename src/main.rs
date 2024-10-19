@@ -74,6 +74,7 @@ async fn main() -> Result<(), PostWomanError> {
 			let pattern = regex::Regex::new(&query)?;
 			let mut joinset = tokio::task::JoinSet::new();
 			let client = Arc::new(config.client);
+			let env = Arc::new(config.env);
 			for (name, endpoint) in config.route {
 				if pattern.find(&name).is_some() {
 					for i in 0..repeat {
@@ -83,13 +84,14 @@ async fn main() -> Result<(), PostWomanError> {
 							"".to_string()
 						};
 						let _client = client.clone();
+						let _env = env.clone();
 						let _endpoint = endpoint.clone();
 						let _name = name.clone();
 						let task = async move {
 							let before = chrono::Local::now();
 							eprintln!(" : [{}] sending {_name} {suffix}...", before.format(TIMESTAMP_FMT));
 							let res = _endpoint
-								.fill()
+								.fill(&_env)
 								.execute(&_client)
 								.await;
 							(res, _name, before, suffix)

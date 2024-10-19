@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{collections::HashMap, str::FromStr};
 
 use base64::{prelude::BASE64_STANDARD, Engine};
 use http::{HeaderMap, HeaderName, HeaderValue};
@@ -49,9 +49,29 @@ fn replace_recursive(element: toml::Value, from: &str, to: &str) -> toml::Value 
 	}
 }
 
+fn stringify(v: &toml::Value) -> String {
+	match v {
+		toml::Value::Boolean(x) => x.to_string(),
+		toml::Value::Integer(x) => x.to_string(),
+		toml::Value::Float(x) => x.to_string(),
+		toml::Value::String(x) => x.clone(),
+		toml::Value::Datetime(x) => x.to_string(),
+		toml::Value::Array(x) => serde_json::to_string(&x).unwrap_or_default(),
+		toml::Value::Table(x) => serde_json::to_string(&x).unwrap_or_default(),
+	}
+}
+
 impl Endpoint {
-	pub fn fill(mut self) -> Self {
+	pub fn fill(mut self, env: &toml::Table) -> Self {
+		let mut vars: HashMap<String, String> = env.into_iter()
+			.map(|(k, v)| (k.clone(), stringify(v)))
+			.collect();
+
 		for (k, v) in std::env::vars() {
+			vars.insert(k, v);
+		}
+
+		for (k, v) in vars {
 			let k_var = format!("${{{k}}}");
 			self.url = self.url.replace(&k_var, &v);
 			if let Some(method) = self.method {

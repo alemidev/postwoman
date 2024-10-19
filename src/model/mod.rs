@@ -9,6 +9,7 @@ pub use extractor::Extractor;
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PostWomanConfig {
 	pub client: PostWomanClient,
+	pub env: toml::Table,
 	// it's weird to name it singular but makes more sense in config
 	pub route: indexmap::IndexMap<String, Endpoint>,
 }

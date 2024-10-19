@@ -1,4 +1,4 @@
-use std::{collections::HashMap, str::FromStr};
+use std::str::FromStr;
 
 use reqwest::{header::{HeaderMap, HeaderName, HeaderValue}};
 
@@ -188,5 +188,5 @@ pub struct PostWomanClient {
 pub struct PostWomanConfig {
 	pub client: PostWomanClient,
 	// it's weird to name it singular but makes more sense in config
-	pub route: HashMap<String, Endpoint>,
+	pub route: indexmap::IndexMap<String, Endpoint>,
 }

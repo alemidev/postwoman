@@ -13,16 +13,3 @@ pub struct PostWomanConfig {
 	// it's weird to name it singular but makes more sense in config
 	pub route: indexmap::IndexMap<String, Endpoint>,
 }
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(untagged)]
-pub enum StringOr<T> {
-	Str(String),
-	T(T),
-}
-
-impl<T: Default> Default for StringOr<T> {
-	fn default() -> Self {
-		Self::T(T::default())
-	}
-}

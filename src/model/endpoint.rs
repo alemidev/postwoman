@@ -6,7 +6,8 @@ use jaq_interpret::FilterT;
 
 use crate::{PostWomanError, APP_USER_AGENT};
 
-use super::{Extractor, PostWomanClient, StringOr};
+use crate::ext::{stringify_toml, stringify_json, StringOr};
+use super::{Extractor, PostWomanClient};
 
 
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
@@ -59,7 +60,7 @@ impl Endpoint {
 		vars.insert("POSTWOMAN_TIMESTAMP".to_string(), chrono::Local::now().timestamp().to_string());
 
 		for (k, v) in env {
-			vars.insert(k.to_string(), crate::ext::stringify_toml(v));
+			vars.insert(k.to_string(), stringify_toml(v));
 		}
 
 		for (k, v) in std::env::vars() {
@@ -173,7 +174,7 @@ impl Endpoint {
 				let json: serde_json::Value = res.json().await?;
 				let selection = jq(&query, json)?;
 				if selection.len() == 1 {
-					crate::ext::stringify_json(&selection[0]) + "\n"
+					stringify_json(&selection[0]) + "\n"
 				} else {
 					serde_json::to_string_pretty(&selection)? + "\n"
 				}

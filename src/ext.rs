@@ -1,3 +1,15 @@
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(untagged)]
+pub enum StringOr<T> {
+	Str(String),
+	T(T),
+}
+
+impl<T: Default> Default for StringOr<T> {
+	fn default() -> Self {
+		Self::T(T::default())
+	}
+}
 
 pub fn stringify_toml(v: &toml::Value) -> String {
 	match v {

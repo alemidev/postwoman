@@ -100,7 +100,7 @@ async fn main() -> Result<(), PostWomanError> {
 			let env = Arc::new(config.env);
 			for (name, mut endpoint) in config.route {
 				if pattern.find(&name).is_some() {
-					if debug { endpoint.extract = None };
+					if debug { endpoint.extract = Some(ext::StringOr::T(model::Extractor::Debug)) };
 					for i in 0..repeat {
 						let suffix = if repeat > 1 {
 							format!("#{} ", i+1)

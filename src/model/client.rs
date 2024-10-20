@@ -1,6 +1,8 @@
 
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ClientConfig {
+	/// base url for composing endpoints
+	pub base: Option<String>,
 	/// user agent for requests, defaults to 'postwoman/<version>'
 	pub user_agent: Option<String>,
 	/// max total duration of each request, in seconds. defaults to 30

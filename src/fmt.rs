@@ -63,8 +63,10 @@ impl PrintableResult for ListResult {
 				println!(" + {key}={}", crate::ext::stringify_toml(&value));
 			}
 
-			for (name, mut endpoint) in collection.route {
-				println!(" - {name} \t{} \t{}", endpoint.method.as_deref().unwrap_or("GET"), endpoint.url);
+			for (name, endpoint) in collection.route {
+				let url = endpoint.url(collection.client.as_ref().and_then(|x| x.base.as_deref()));
+				let method = endpoint.method.as_deref().unwrap_or("GET");
+				println!(" - {name} \t{method} \t{url}");
 				if ! compact {
 					if let Some(ref query) = endpoint.query {
 						for query in query {

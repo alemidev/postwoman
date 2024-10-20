@@ -2,17 +2,18 @@
 user_agent = "postwoman@sample/0.3.1"
 timeout = 60 # max time for each request to complete, in seconds
 redirects = 5 # allow up to five redirects, defaults to none
+base = "https://api.alemi.dev" # all route urls will be appended to this base
 
 [env] # these will be replaced in routes options. environment vars overrule these
 PW_TOKEN = "set-me-as-and-environment-variable!"
 
 
 
-[route.healthcheck] # the simplest possible route: just name and url
-url = "https://api.alemi.dev/"
+[route.healthcheck] # the simplest possible route: just name and path
+path = "/"
 
 [route.debug]
-url = "https://api.alemi.dev/debug"
+path = "/debug"
 method = "PUT" # specify request method
 query = [ # specify query parameters in a more friendly way
 	"body=json",
@@ -23,20 +24,20 @@ headers = [ # add custom headers to request
 	"Authorization: Bearer ${PW_TOKEN}",
 ]
 body = { hello = "world!", success = true } # body can be a bare string, or an inline table (will be converted to json)
-extract = ".path" # extract from json responses with JQ syntax
-# note that a bare extractor string is equivalent to `{ type = "jq", query = ".path" }`
+extract = { type = "body" } # get the whole response body, this is the default extractor
 
 [route.benchmark]
-url = "https://api.alemi.dev/look/into/the/void"
+path = "/look/into/the/void"
 extract = { type = "discard" } # if you don't care about the output, discard it!
 
 [route.notfound]
-url = "https://api.alemi.dev/not-found"
-expect = 404 # it's possible to specify expected status code, will fail if doesn't match
+path = "https://cdn.alemi.dev/does-not-exist"
+absolute = true # mark as absolute to avoid composing with client base url
+status = 404 # it's possible to specify expected status code, will fail if doesn't match
 extract = { type = "regex", pattern = 'nginx/[0-9\.]+' } # extract from response with regex
 
 [route.payload]
-url = "https://api.alemi.dev/debug"
+path = "/debug"
 method = "POST"
 body = '''{
 	"complex": {
@@ -46,9 +47,10 @@ body = '''{
 		"way": true
 	}
 }'''
-extract = { type = "body" } # get the whole response body, this is the default extractor
+extract = ".path" # extract from json responses with JQ syntax (default extractor), equivalent to `{ type = "jq", query = ".path" }`
+expect = "/debug" # if extracted result doesn't match, this route will return an error
 
 [route.cookie]
-url = "https://api.alemi.dev/getcookie"
+path = "/getcookie"
 method = "GET"
 extract = { type = "header", key = "Set-Cookie" } # get a specific response header, ignoring body

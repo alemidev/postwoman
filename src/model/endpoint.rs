@@ -14,8 +14,10 @@ use super::{ExtractorConfig, ClientConfig};
 
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
 pub struct EndpointConfig {
-	/// endpoint url, required
-	pub url: String,
+	/// endpoint path, composed from client base and query params
+	pub path: String,
+	/// absolute url, don't compose with client base url
+	pub absolute: Option<bool>,
 	/// http method for request, default GET
 	pub method: Option<String>,
 	/// query parameters, appended to base url
@@ -31,24 +33,24 @@ pub struct EndpointConfig {
 }
 
 impl EndpointConfig {
-	pub fn body(&mut self) -> Result<String, serde_json::Error> {
-		match self.body.take() {
+	pub fn body(&self) -> Result<String, serde_json::Error> {
+		match &self.body {
 			None => Ok("".to_string()),
 			Some(StringOr::Str(x)) => Ok(x.clone()),
 			Some(StringOr::T(json)) => Ok(serde_json::to_string(&json)?),
 		}
 	}
 
-	pub fn method(&mut self) -> Result<reqwest::Method, InvalidMethod> {
+	pub fn method(&self) -> Result<reqwest::Method, InvalidMethod> {
 		match self.method {
 			Some(ref m) => Ok(reqwest::Method::from_str(m)?),
 			None => Ok(reqwest::Method::GET),
 		}
 	}
 
-	pub fn headers(&mut self) -> Result<HeaderMap, InvalidHeaderError> {
+	pub fn headers(&self) -> Result<HeaderMap, InvalidHeaderError> {
 		let mut headers = HeaderMap::default();
-		for header in self.headers.take().unwrap_or_default() {
+		for header in self.headers.as_deref().unwrap_or(&[]) {
 			let (k, v) = header.split_once(':')
 				.ok_or_else(|| InvalidHeaderError::Format(header.clone()))?;
 			headers.insert(
@@ -59,9 +61,13 @@ impl EndpointConfig {
 		Ok(headers)
 	}
 
-	pub fn url(&mut self) -> String {
-		let mut url = self.url.clone();
-		if let Some(query) = self.query.take() {
+	pub fn url(&self, base: Option<&str>) -> String {
+		let mut url = if self.absolute.unwrap_or(false) {
+			self.path.clone()
+		} else {
+			format!("{}{}", base.unwrap_or_default(), self.path)
+		};
+		if let Some(ref query) = self.query {
 			url = format!("{url}?{}", query.join("&"));
 		}
 		url
@@ -82,7 +88,7 @@ impl EndpointConfig {
 
 		for (k, v) in vars {
 			let k_var = format!("${{{k}}}");
-			self.url = self.url.replace(&k_var, &v);
+			self.path = self.path.replace(&k_var, &v);
 			if let Some(method) = self.method {
 				self.method = Some(method.replace(&k_var, &v));
 			}
@@ -118,11 +124,11 @@ impl EndpointConfig {
 		self
 	}
 
-	pub async fn execute(mut self, opts: &ClientConfig) -> Result<String, PostWomanError> {
-		let url = self.url();
+	pub async fn execute(self, opts: &ClientConfig) -> Result<String, PostWomanError> {
 		let body = self.body()?;
 		let method = self.method()?;
 		let headers = self.headers()?;
+		let url = self.url(opts.base.as_deref());
 
 		let client = reqwest::Client::builder()
 			.user_agent(opts.user_agent.as_deref().unwrap_or(APP_USER_AGENT))

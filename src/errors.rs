@@ -34,6 +34,9 @@ pub enum PostWomanError {
 	#[error("request didn't match expected status code: {0:?}")]
 	UnexpectedStatusCode(reqwest::Response),
 
+	#[error("request didn't match expected result: got '{0}' expected '{1}'")]
+	UnexpectedResult(String, String),
+
 	#[error("invalid Json Query: {0}")]
 	JQError(String),
 

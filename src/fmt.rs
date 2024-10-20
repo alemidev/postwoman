@@ -19,7 +19,7 @@ impl PrintableResult for RunResult {
 	fn print(self) {
 		let (result, _namespace, _name, _elapsed) = self;
 		match result {
-			Ok(x) => print!("{x}"),
+			Ok(x) => println!("{x}"),
 			Err(e) => eprintln!(" ! {e}"),
 		}
 	}

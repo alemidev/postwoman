@@ -26,10 +26,12 @@ pub struct EndpointConfig {
 	pub headers: Option<Vec<String>>,
 	/// body, optional string
 	pub body: Option<StringOr<toml::Table>>,
-	/// expected error code, will fail if different
-	pub expect: Option<u16>,
+	/// expected error code, will fail if different, defaults to 200
+	pub status: Option<u16>,
 	/// response extractor
 	pub extract: Option<StringOr<ExtractorConfig>>,
+	/// expected result, will fail if different when provided
+	pub expect: Option<String>,
 }
 
 impl EndpointConfig {
@@ -145,26 +147,25 @@ impl EndpointConfig {
 			.send()
 			.await?;
 
-		if res.status().as_u16() != self.expect.unwrap_or(200) {
+		if res.status().as_u16() != self.status.unwrap_or(200) {
 			return Err(PostWomanError::UnexpectedStatusCode(res));
 		}
 
-		Ok(match self.extract.unwrap_or_default() {
+		let res = match self.extract.unwrap_or_default() {
 			StringOr::T(ExtractorConfig::Discard) => "".to_string(),
 			StringOr::T(ExtractorConfig::Body) => format_body(res).await?,
 			StringOr::T(ExtractorConfig::Debug) => {
 				// TODO needless double format
 				let res_dbg = format!("{res:#?}");
 				let body = format_body(res).await?; 
-				format!("{res_dbg}\nBody: {body}\n")
+				format!("{res_dbg}\nBody: {body}")
 			},
 			StringOr::T(ExtractorConfig::Header { key }) => res
 				.headers()
 				.get(&key)
 				.ok_or(PostWomanError::HeaderNotFound(key))?
 				.to_str()?
-				.to_string()
-				+ "\n",
+				.to_string(),
 			StringOr::T(ExtractorConfig::Regex { pattern }) => {
 				let pattern = regex::Regex::new(&pattern)?;
 				let body = format_body(res).await?;
@@ -172,19 +173,26 @@ impl EndpointConfig {
 					.ok_or_else(|| PostWomanError::NoMatch(body.clone()))?
 					.as_str()
 					.to_string()
-					+ "\n"
 			},
 			// bare string defaults to JQL query
 			StringOr::T(ExtractorConfig::JQ { query }) | StringOr::Str(query) => {
 				let json: serde_json::Value = res.json().await?;
 				let selection = jq(&query, json)?;
 				if selection.len() == 1 {
-					stringify_json(&selection[0]) + "\n"
+					stringify_json(&selection[0])
 				} else {
-					serde_json::to_string_pretty(&selection)? + "\n"
+					serde_json::to_string_pretty(&selection)?
 				}
 			},
-		})
+		};
+
+		if let Some(expected) = self.expect {
+			if expected != res {
+				return Err(PostWomanError::UnexpectedResult(res, expected));
+			}
+		}
+
+		Ok(res)
 	}
 }
 

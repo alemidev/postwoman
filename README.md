@@ -29,104 +29,58 @@ A collection can be super simple
 url = "https://api.alemi.dev/debug"
 ```
 
-But more complex options are available
+But more complex options are available, check out provided `postwoman.toml` for some (ready to run!) examples.
+
+More complex collection trees can be achieved with `include` top level field.
+Includes are idempotent and always resolved relative from parent collection's directory.
 
 ```toml
-[client] # HTTP client configuration
-user_agent = "postwoman@sample/0.3.1"
-timeout = 60 # max time for each request to complete, in seconds
-redirects = 5 # allow up to five redirects, defaults to none
-
-[env] # these will be replaced in routes options. environment vars overrule these
-PW_TOKEN = "set-me-as-and-environment-variable!"
-
-
-
-[route.healthcheck] # the simplest possible route: just name and url
-url = "https://api.alemi.dev/"
-
-[route.debug]
-url = "https://api.alemi.dev/debug"
-method = "PUT" # specify request method
-query = [ # specify query parameters in a more friendly way
-	"body=json",
-	"cache=0"
+include = [
+	"other.toml",
+	"even/more.toml"
 ]
-headers = [ # add custom headers to request
-	"Content-Type: application/json",
-	"Authorization: Bearer ${PW_TOKEN}",
-]
-body = { hello = "world!", success = true } # body can be a bare string, or an inline table (will be converted to json)
-extract = ".path" # extract from json responses with JQ syntax
-# note that a bare extractor string is equivalent to `{ type = "jq", query = ".path" }`
-
-[route.benchmark]
-url = "https://api.alemi.dev/look/into/the/void"
-extract = { type = "discard" } # if you don't care about the output, discard it!
-
-[route.notfound]
-url = "https://api.alemi.dev/not-found"
-expect = 404 # it's possible to specify expected status code, will fail if doesn't match
-extract = { type = "regex", pattern = 'nginx/[0-9\.]+' } # extract from response with regex
-
-[route.payload]
-url = "https://api.alemi.dev/debug"
-method = "POST"
-body = '''{
-	"complex": {
-		"json": "payloads",
-		"can": "be",
-		"expressed": "this",
-		"way": true
-	}
-}'''
-extract = { type = "body" } # get the whole response body, this is the default extractor
-
-[route.cookie]
-url = "https://api.alemi.dev/getcookie"
-method = "GET"
-extract = { type = "header", key = "Set-Cookie" } # get a specific response header, ignoring body
 ```
 
 ### Running
 Show collection summary
 ```
 $ postwoman
-> postwoman@sample/0.2.0
-+ PW_TOKEN: set-me-as-and-environment-variable!
-
-- healthcheck: 	GET 	https://api.alemi.dev/
-- debug: 	PUT 	https://api.alemi.dev/debug
-- benchmark: 	GET 	https://api.alemi.dev/look/into/the/void
-- notfound: 	GET 	https://api.alemi.dev/not-found
-- payload: 	POST 	https://api.alemi.dev/debug
-- cookie: 	GET 	https://api.alemi.dev/getcookie
+~@ postwoman/0.3.1
+-> postwoman.toml
+ + PW_TOKEN=set-me-as-and-environment-variable!
+ - healthcheck 	GET 	https://api.alemi.dev/
+ - debug 	PUT 	https://api.alemi.dev/debug
+ - benchmark 	GET 	https://api.alemi.dev/look/into/the/void
+ - notfound 	GET 	https://api.alemi.dev/not-found
+ - payload 	POST 	https://api.alemi.dev/debug
+ - cookie 	GET 	https://api.alemi.dev/getcookie
 ```
 
 Run all endpoints matching `.` (aka all of them)
 ```
 $ postwoman run .
- : [22:27:17.960461] sending healthcheck ...
- + [22:27:18.109843] healthcheck done in 149ms
+~@ postwoman/0.3.1
+ : [05:14:47.241122] postwoman.toml::healthcheck 	sending request...
+ + [05:14:47.411708] postwoman.toml::healthcheck 	done in 170ms
 {
   "example": [
     "https://api.alemi.dev/debug",
     "https://api.alemi.dev/msg",
     "https://api.alemi.dev/mumble/ping"
   ],
-  "time": "Saturday, 19-Oct-2024 20:27:18 GMT",
+  "time": "Sunday, 20-Oct-2024 03:14:47 GMT",
   "up": true
 }
- : [22:27:18.109924] sending debug ...
- + [22:27:18.268383] debug done in 158ms
+ : [05:14:47.411807] postwoman.toml::debug 	sending request...
+ + [05:14:47.574391] postwoman.toml::debug 	done in 162ms
 /debug?body=json&cache=0
- : [22:27:18.268477] sending benchmark ...
- + [22:27:18.422707] benchmark done in 154ms
- : [22:27:18.422775] sending notfound ...
- + [22:27:18.575942] notfound done in 153ms
+ : [05:14:47.574474] postwoman.toml::benchmark 	sending request...
+ + [05:14:47.726527] postwoman.toml::benchmark 	done in 152ms
+ : [05:14:47.726605] postwoman.toml::notfound 	sending request...
+ + [05:14:47.878922] postwoman.toml::notfound 	done in 152ms
 nginx/1.26.2
- : [22:27:18.576010] sending payload ...
- + [22:27:18.732582] payload done in 156ms
+ : [05:14:47.879000] postwoman.toml::payload 	sending request...
+ + [05:14:48.039053] postwoman.toml::payload 	done in 160ms
 {
   "body": "{\n\t\"complex\": {\n\t\t\"json\": \"payloads\",\n\t\t\"can\": \"be\",\n\t\t\"expressed\": \"this\",\n\t\t\"way\": true\n\t}\n}",
   "headers": {
@@ -135,33 +89,34 @@ nginx/1.26.2
     ],
     "connection": "close",
     "content-length": "94",
-    "user-agent": "postwoman@sample/0.2.0",
+    "user-agent": "postwoman@sample/0.3.1",
     "x-forwarded-proto": "https",
     "x-real-ip": "93.34.149.115",
-    "x-real-port": 46695,
-    "x-user-agent": "postwoman@sample/0.2.0"
+    "x-real-port": 46945,
+    "x-user-agent": "postwoman@sample/0.3.1"
   },
   "method": "POST",
   "path": "/debug",
-  "time": 1729369638.7079802,
+  "time": 1729394088.0156112,
   "version": "HTTP/1.0"
 }
- : [22:27:18.732676] sending cookie ...
- + [22:27:18.886862] cookie done in 154ms
+ : [05:14:48.039099] postwoman.toml::cookie 	sending request...
+ + [05:14:48.168725] postwoman.toml::cookie 	done in 129ms
 SGF2ZSBhIENvb2tpZSE=
 ```
 
 Debug a specific route passing `--debug`:
 ```
 $ postwoman run notfound --debug
- : [22:26:59.045642] sending notfound ...
- + [22:26:59.220103] notfound done in 174ms
+~@ postwoman/0.3.1
+ : [05:15:16.960147] postwoman.toml::notfound 	sending request...
+ + [05:15:17.120647] postwoman.toml::notfound 	done in 160ms
 Response {
     url: "https://api.alemi.dev/not-found",
     status: 404,
     headers: {
         "server": "nginx/1.26.2",
-        "date": "Sat, 19 Oct 2024 20:26:59 GMT",
+        "date": "Sun, 20 Oct 2024 03:15:17 GMT",
         "content-type": "text/html",
         "content-length": "153",
         "connection": "keep-alive",

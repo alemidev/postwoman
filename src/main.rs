@@ -6,6 +6,7 @@ use std::{collections::HashMap, str::FromStr};
 
 use clap::{Parser, Subcommand};
 
+use indexmap::IndexMap;
 pub use model::PostWomanCollection;
 pub use errors::PostWomanError;
 
@@ -66,7 +67,7 @@ fn main() {
 		}
 	}
 
-	let mut collections = HashMap::new();
+	let mut collections = IndexMap::new();
 
 	if !load_collections(&mut collections, args.collection.clone()) {
 		return;
@@ -104,7 +105,7 @@ fn main() {
 	}
 }
 
-fn load_collections(store: &mut HashMap<String, PostWomanCollection>, mut path: std::path::PathBuf) -> bool {
+fn load_collections(store: &mut IndexMap<String, PostWomanCollection>, mut path: std::path::PathBuf) -> bool {
 	let collection_raw = match std::fs::read_to_string(&path) {
 		Ok(x) => x,
 		Err(e) => {
@@ -122,6 +123,7 @@ fn load_collections(store: &mut HashMap<String, PostWomanCollection>, mut path: 
 	};
 
 	let name = path.to_string_lossy().to_string();
+	let mut to_include = Vec::new();
 
 	if let Some(ref includes) = collection.include {
 		path.pop();
@@ -129,13 +131,17 @@ fn load_collections(store: &mut HashMap<String, PostWomanCollection>, mut path: 
 			let mut base = path.clone();
 			let new = std::path::PathBuf::from_str(include).expect("infallible");
 			base.push(new);
-			if !load_collections(store, base) {
-				return false;
-			}
+			to_include.push(base);
 		}
 	}
 
 	store.insert(name, collection);
+
+	for base in to_include {
+		if !load_collections(store, base) {
+			return false;
+		}
+	}
 
 	true
 }

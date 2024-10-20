@@ -58,8 +58,9 @@ pub enum PostWomanActions {
 
 const TIMESTAMP_FMT: &str = "%H:%M:%S%.6f"; 
 
-fn main() -> Result<(), PostWomanError> {
+fn main() {
 	let args = PostWomanArgs::parse();
+	let multi_thread = args.multi_threaded;
 
 	// if we got a regex, test it early to avoid wasting work when invalid
 	if let Some(PostWomanActions::Run { ref query, .. }) = args.action {
@@ -71,13 +72,14 @@ fn main() -> Result<(), PostWomanError> {
 
 	load_collections(&mut collections, args.collection.clone());
 
-	if args.multi_threaded {
 	let task = async move {
 
 		for (name, collection) in collections {
 			run_postwoman(&args, name, collection).await;
 		}
 	};
+
+	if multi_thread {
 		tokio::runtime::Builder::new_multi_thread()
 			.enable_all()
 			.build()
@@ -110,10 +112,14 @@ fn load_collections(store: &mut HashMap<String, PostWomanCollection>, mut path: 
 	store.insert(name, collection);
 }
 
+const DEFAULT_ACTION: PostWomanActions = PostWomanActions::List { verbose: false };
+
+async fn run_postwoman(args: &PostWomanArgs, name: String, collection: PostWomanCollection) {
+	let action = args.action.as_ref().unwrap_or(&DEFAULT_ACTION);
+
 	match action {
 		PostWomanActions::List { verbose } => {
-			let ua = collection.client.user_agent.unwrap_or(APP_USER_AGENT.to_string());
-			println!("> {ua}");
+			println!("> {name}");
 
 			for (key, value) in collection.env {
 				println!("+ {key}: {}", ext::stringify_toml(&value));
@@ -123,7 +129,7 @@ fn load_collections(store: &mut HashMap<String, PostWomanCollection>, mut path: 
 
 			for (name, mut endpoint) in collection.route {
 				println!("- {name}: \t{} \t{}", endpoint.method.as_deref().unwrap_or("GET"), endpoint.url);
-				if verbose {
+				if *verbose {
 					if let Some(ref query) = endpoint.query {
 						for query in query {
 							println!(" |? {query}");
@@ -145,15 +151,16 @@ fn load_collections(store: &mut HashMap<String, PostWomanCollection>, mut path: 
 			}
 		},
 		PostWomanActions::Run { query, parallel, repeat, debug  } => {
-			let pattern = regex::Regex::new(&query)?;
+			// this is always safe to compile because we tested it beforehand
+			let pattern = regex::Regex::new(query).expect("tested it before and still failed here???");
 			let mut joinset = tokio::task::JoinSet::new();
 			let client = std::sync::Arc::new(collection.client);
 			let env = std::sync::Arc::new(collection.env);
 			for (name, mut endpoint) in collection.route {
 				if pattern.find(&name).is_some() {
-					if debug { endpoint.extract = Some(ext::StringOr::T(model::ExtractorConfig::Debug)) };
-					for i in 0..repeat {
-						let suffix = if repeat > 1 {
+					if *debug { endpoint.extract = Some(ext::StringOr::T(model::ExtractorConfig::Debug)) };
+					for i in 0..*repeat {
+						let suffix = if *repeat > 1 {
 							format!("#{} ", i+1)
 						} else {
 							"".to_string()
@@ -171,31 +178,37 @@ fn load_collections(store: &mut HashMap<String, PostWomanCollection>, mut path: 
 								.await;
 							(res, _name, before, suffix)
 						};
-						if parallel {
+						if *parallel {
 							joinset.spawn(task);
 						} else {
 							let (res, name, before, num) = task.await;
-							print_results(res?, name, before, num);
+							match res {
+								Ok(success) => print_results(true, success, name, before, num),
+								Err(e) => print_results(false, e.to_string(), name, before, num),
+							}
 						}
 					}
 				}
 			}
 			while let Some(j) = joinset.join_next().await {
 				match j {
-					Ok((res, name, before, num)) => print_results(res?, name, before, num),
 					Err(e) => eprintln!("! error joining task: {e}"),
+					Ok((res, name, before, num)) => match res {
+						Err(e) => print_results(false, e.to_string(), name, before, num),
+						Ok(success) => print_results(true, success, name, before, num),
+					},
 				}
 			}
 		},
 	}
-
-	Ok(())
 }
 
-fn print_results(res: String, name: String, before: chrono::DateTime<chrono::Local>, suffix: String) {
+fn print_results(success: bool, res: String, name: String, before: chrono::DateTime<chrono::Local>, suffix: String) {
 	let after = chrono::Local::now();
 	let elapsed = (after - before).num_milliseconds();
 	let timestamp = after.format(TIMESTAMP_FMT);
-	eprintln!(" + [{timestamp}] {name} {suffix}done in {elapsed}ms", );
+	let symbol = if success { " + " } else { "!! " };
+	let verb = if success { "done in" } else { "failed after" };
+	eprintln!("{symbol}[{timestamp}] {name} {suffix}{verb} {elapsed}ms", );
 	print!("{}", res);
 }

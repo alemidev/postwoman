@@ -36,7 +36,7 @@ pub enum PostWomanActions {
 		query: String,
 
 		/// run requests in parallel
-		#[arg(long, default_value_t = false)]
+		#[arg(short, long, default_value_t = false)]
 		parallel: bool,
 
 		/// force debug extractor on all routes
@@ -46,9 +46,9 @@ pub enum PostWomanActions {
 
 	/// show all registered routes in current collection
 	List {
-		/// show verbose details for each route
+		/// show only limited details for each route
 		#[arg(short, long, default_value_t = false)]
-		verbose: bool,
+		compact: bool,
 	},
 }
 
@@ -117,15 +117,15 @@ fn load_collections(store: &mut HashMap<String, PostWomanCollection>, mut path: 
 	store.insert(name, collection);
 }
 
-const DEFAULT_ACTION: PostWomanActions = PostWomanActions::List { verbose: false };
+const DEFAULT_ACTION: PostWomanActions = PostWomanActions::List { compact: true };
 type RunResult = (Result<String, PostWomanError>, String, String, chrono::DateTime<chrono::Local>);
 
 async fn run_postwoman(args: &PostWomanArgs, namespace: String, collection: PostWomanCollection, pool: &mut tokio::task::JoinSet<RunResult>) {
 	let action = args.action.as_ref().unwrap_or(&DEFAULT_ACTION);
 
 	match action {
-		PostWomanActions::List { verbose } => {
 			println!("> {name}");
+		PostWomanActions::List { compact } => {
 
 			for (key, value) in collection.env {
 				println!("+ {key}: {}", ext::stringify_toml(&value));
@@ -135,7 +135,7 @@ async fn run_postwoman(args: &PostWomanArgs, namespace: String, collection: Post
 
 			for (name, mut endpoint) in collection.route {
 				println!("- {name}: \t{} \t{}", endpoint.method.as_deref().unwrap_or("GET"), endpoint.url);
-				if *verbose {
+				if ! *compact {
 					if let Some(ref query) = endpoint.query {
 						for query in query {
 							println!(" |? {query}");

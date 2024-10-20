@@ -61,12 +61,16 @@ fn main() {
 	// if we got a regex, test it early to avoid wasting work when invalid
 	if let Some(PostWomanActions::Run { ref query, .. }) = args.action {
 		// note that if you remove this test, there's another .expect() below you need to manage too!
-		regex::Regex::new(query).expect("error compiling regex");
+		if let Err(e) = regex::Regex::new(query) {
+			return eprintln!("! invalid regex filter: {e}");
+		}
 	}
 
 	let mut collections = HashMap::new();
 
-	load_collections(&mut collections, args.collection.clone());
+	if !load_collections(&mut collections, args.collection.clone()) {
+		return;
+	}
 
 	let task = async move {
 
@@ -99,9 +103,23 @@ fn main() {
 	}
 }
 
-fn load_collections(store: &mut HashMap<String, PostWomanCollection>, mut path: std::path::PathBuf) {
-	let collection_raw = std::fs::read_to_string(&path).expect("error loading collection");
-	let collection: PostWomanCollection = toml::from_str(&collection_raw).expect("error parsing collection");
+fn load_collections(store: &mut HashMap<String, PostWomanCollection>, mut path: std::path::PathBuf) -> bool {
+	let collection_raw = match std::fs::read_to_string(&path) {
+		Ok(x) => x,
+		Err(e) => {
+			eprintln!("! error loading collection {path:?}: {e}");
+			return false;
+		},
+	};
+
+	let collection: PostWomanCollection = match toml::from_str(&collection_raw) {
+		Ok(x) => x,
+		Err(e) => {
+			eprintln!("! error parsing collection {path:?}: {e}");
+			return false;
+		},
+	};
+
 	let name = path.to_string_lossy().to_string();
 
 	if let Some(ref includes) = collection.include {
@@ -110,11 +128,15 @@ fn load_collections(store: &mut HashMap<String, PostWomanCollection>, mut path: 
 			let mut base = path.clone();
 			let new = std::path::PathBuf::from_str(include).expect("infallible");
 			base.push(new);
-			load_collections(store, base);
+			if !load_collections(store, base) {
+				return false;
+			}
 		}
 	}
 
 	store.insert(name, collection);
+
+	true
 }
 
 const DEFAULT_ACTION: PostWomanActions = PostWomanActions::List { compact: true };

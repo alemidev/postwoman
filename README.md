@@ -33,7 +33,9 @@ But more complex options are available
 
 ```toml
 [client] # HTTP client configuration
-user_agent = "postwoman@sample/0.2.0"
+user_agent = "postwoman@sample/0.3.1"
+timeout = 60 # max time for each request to complete, in seconds
+redirects = 5 # allow up to five redirects, defaults to none
 
 [env] # these will be replaced in routes options. environment vars overrule these
 PW_TOKEN = "set-me-as-and-environment-variable!"

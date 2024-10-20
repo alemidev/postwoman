@@ -2,7 +2,7 @@ mod model;
 mod errors;
 mod ext;
 
-use std::{collections::HashMap, str::FromStr};
+use std::str::FromStr;
 
 use clap::{Parser, Subcommand};
 
@@ -25,7 +25,7 @@ struct PostWomanArgs {
 	action: Option<PostWomanActions>,
 
 	/// start a multi-thread runtime, with multiple worker threads
-	#[arg(long, default_value_t = false)]
+	#[arg(short = 'M', long, default_value_t = false)]
 	multi_threaded: bool,
 }
 
@@ -43,6 +43,10 @@ pub enum PostWomanActions {
 		/// force debug extractor on all routes
 		#[arg(long, default_value_t = false)]
 		debug: bool,
+
+		/// print matched routes but don't perform requests
+		#[arg(long, default_value_t = false)]
+		dry_run: bool,
 	},
 
 	/// show all registered routes in current collection
@@ -185,7 +189,7 @@ async fn run_postwoman(args: &PostWomanArgs, namespace: String, collection: Post
 
 			println!();
 		},
-		PostWomanActions::Run { query, parallel, debug  } => {
+		PostWomanActions::Run { query, parallel, debug, dry_run  } => {
 			// this is always safe to compile because we tested it beforehand
 			let pattern = regex::Regex::new(query).expect("tested it before and still failed here???");
 			let client = std::sync::Arc::new(collection.client.unwrap_or_default());
@@ -196,16 +200,21 @@ async fn run_postwoman(args: &PostWomanArgs, namespace: String, collection: Post
 					let _client = client.clone();
 					let _env = env.clone();
 					let _endpoint = endpoint.clone();
+					let _dry_run = *dry_run;
 					let _name = name.clone();
 					let _namespace = namespace.clone();
 					let task = async move {
 						let before = chrono::Local::now();
 						eprintln!(" : [{}] {_namespace}::{_name} \tsending request...", before.format(TIMESTAMP_FMT));
-						let res = _endpoint
-							.fill(&_env)
-							.execute(&_client)
-							.await;
-						(res, _namespace, _name, before)
+						if _dry_run {
+							(Ok("".to_string()), _namespace, _name, before)
+						} else {
+							let res = _endpoint
+								.fill(&_env)
+								.execute(&_client)
+								.await;
+							(res, _namespace, _name, before)
+						}
 					};
 					if *parallel {
 						pool.spawn(task);

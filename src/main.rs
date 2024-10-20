@@ -154,8 +154,8 @@ async fn run_postwoman(args: &PostWomanArgs, name: String, collection: PostWoman
 			// this is always safe to compile because we tested it beforehand
 			let pattern = regex::Regex::new(query).expect("tested it before and still failed here???");
 			let mut joinset = tokio::task::JoinSet::new();
-			let client = std::sync::Arc::new(collection.client);
-			let env = std::sync::Arc::new(collection.env);
+			let client = std::sync::Arc::new(collection.client.unwrap_or_default());
+			let env = std::sync::Arc::new(collection.env.unwrap_or_default());
 			for (name, mut endpoint) in collection.route {
 				if pattern.find(&name).is_some() {
 					if *debug { endpoint.extract = Some(ext::StringOr::T(model::ExtractorConfig::Debug)) };

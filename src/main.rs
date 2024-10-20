@@ -49,7 +49,7 @@ pub enum PostWomanActions {
 	/// show all registered routes in current collection
 	List {
 		/// show verbose details for each route
-		#[arg(short = 'V', long, default_value_t = false)]
+		#[arg(short, long, default_value_t = false)]
 		verbose: bool,
 	},
 }

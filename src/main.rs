@@ -2,6 +2,8 @@ mod model;
 mod errors;
 mod ext;
 
+use std::{collections::HashMap, str::FromStr};
+
 use clap::{Parser, Subcommand};
 
 pub use model::PostWomanCollection;
@@ -15,7 +17,7 @@ pub static APP_USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CAR
 struct PostWomanArgs {
 	/// collection file to use
 	#[arg(short, long, default_value = "postwoman.toml")]
-	collection: String,
+	collection: std::path::PathBuf,
 
 	/// action to run
 	#[clap(subcommand)]
@@ -59,26 +61,54 @@ const TIMESTAMP_FMT: &str = "%H:%M:%S%.6f";
 fn main() -> Result<(), PostWomanError> {
 	let args = PostWomanArgs::parse();
 
-	let collection_raw = std::fs::read_to_string(&args.collection)?;
-	let collection: PostWomanCollection = toml::from_str(&collection_raw)?;
+	// if we got a regex, test it early to avoid wasting work when invalid
+	if let Some(PostWomanActions::Run { ref query, .. }) = args.action {
+		// note that if you remove this test, there's another .expect() below you need to manage too!
+		regex::Regex::new(query).expect("error compiling regex");
+	}
+
+	let mut collections = HashMap::new();
+
+	load_collections(&mut collections, args.collection.clone());
 
 	if args.multi_threaded {
+	let task = async move {
+
+		for (name, collection) in collections {
+			run_postwoman(&args, name, collection).await;
+		}
+	};
 		tokio::runtime::Builder::new_multi_thread()
 			.enable_all()
 			.build()
 			.expect("failed creating tokio multi-thread runtime")
-			.block_on(async { run_postwoman(args, collection).await })
+			.block_on(task)
 	} else {
 		tokio::runtime::Builder::new_current_thread()
 			.enable_all()
 			.build()
 			.expect("failed creating tokio current-thread runtime")
-			.block_on(async { run_postwoman(args, collection).await })
+			.block_on(task)
 	}
 }
 
-async fn run_postwoman(args: PostWomanArgs, collection: PostWomanCollection) -> Result<(), PostWomanError> {
-	let action = args.action.unwrap_or(PostWomanActions::List { verbose: false });
+fn load_collections(store: &mut HashMap<String, PostWomanCollection>, mut path: std::path::PathBuf) {
+	let collection_raw = std::fs::read_to_string(&path).expect("error loading collection");
+	let collection: PostWomanCollection = toml::from_str(&collection_raw).expect("error parsing collection");
+	let name = path.to_string_lossy().to_string();
+
+	if let Some(ref includes) = collection.include {
+		path.pop();
+		for include in includes {
+			let mut base = path.clone();
+			let new = std::path::PathBuf::from_str(include).expect("infallible");
+			base.push(new);
+			load_collections(store, base);
+		}
+	}
+
+	store.insert(name, collection);
+}
 
 	match action {
 		PostWomanActions::List { verbose } => {

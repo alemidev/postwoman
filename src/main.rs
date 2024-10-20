@@ -88,6 +88,7 @@ fn main() {
 		}
 	};
 
+	eprintln!("~@ {APP_USER_AGENT}");
 	if multi_thread {
 		tokio::runtime::Builder::new_multi_thread()
 			.enable_all()
@@ -146,37 +147,37 @@ async fn run_postwoman(args: &PostWomanArgs, namespace: String, collection: Post
 	let action = args.action.as_ref().unwrap_or(&DEFAULT_ACTION);
 
 	match action {
-			println!("> {name}");
 		PostWomanActions::List { compact } => {
+			println!("-> {namespace}");
 
-			for (key, value) in collection.env {
-				println!("+ {key}: {}", ext::stringify_toml(&value));
+			for (key, value) in collection.env.unwrap_or_default() {
+				println!(" + {key}={}", ext::stringify_toml(&value));
 			}
 
-			println!();
-
 			for (name, mut endpoint) in collection.route {
-				println!("- {name}: \t{} \t{}", endpoint.method.as_deref().unwrap_or("GET"), endpoint.url);
+				println!(" - {name} \t{} \t{}", endpoint.method.as_deref().unwrap_or("GET"), endpoint.url);
 				if ! *compact {
 					if let Some(ref query) = endpoint.query {
 						for query in query {
-							println!(" |? {query}");
+							println!("   |? {query}");
 						}
 					}
 					if let Some(ref headers) = endpoint.headers {
 						for header in headers {
-							println!(" |: {header}");
+							println!("   |: {header}");
 						}
 					}
 					if let Some(ref _x) = endpoint.body {
 						if let Ok(body) = endpoint.body() {
-							println!(" |> {body}");
+							println!("   |> {}", body.replace("\n", "\n   |> "));
 						} else {
-							println!(" |> [!] invalid body");
+							println!("   |> [!] invalid body");
 						}
 					}
 				}
 			}
+
+			println!();
 		},
 		PostWomanActions::Run { query, parallel, debug  } => {
 			// this is always safe to compile because we tested it beforehand
@@ -211,12 +212,23 @@ async fn run_postwoman(args: &PostWomanArgs, namespace: String, collection: Post
 	}
 }
 
-fn print_results(success: bool, res: String, name: String, before: chrono::DateTime<chrono::Local>, suffix: String) {
-	let after = chrono::Local::now();
-	let elapsed = (after - before).num_milliseconds();
-	let timestamp = after.format(TIMESTAMP_FMT);
-	let symbol = if success { " + " } else { "!! " };
-	let verb = if success { "done in" } else { "failed after" };
-	eprintln!("{symbol}[{timestamp}] {name} {suffix}{verb} {elapsed}ms", );
-	print!("{}", res);
+trait PrintableResult {
+	fn print(self);
+}
+
+impl PrintableResult for RunResult {
+	fn print(self) {
+		let (result, namespace, name, before) = self;
+		let success = result.is_ok();
+		let after = chrono::Local::now();
+		let elapsed = (after - before).num_milliseconds();
+		let timestamp = after.format(TIMESTAMP_FMT);
+		let symbol = if success { " + " } else { "<!>" };
+		let verb = if success { "done in" } else { "failed after" };
+		eprintln!("{symbol}[{timestamp}] {namespace}::{name} \t{verb} {elapsed}ms", );
+		match result {
+			Ok(x) => print!("{x}"),
+			Err(e) => eprintln!(" ! {e}"),
+		}
+	}
 }

@@ -64,7 +64,11 @@ impl PrintableResult for ListResult {
 			}
 
 			for (name, endpoint) in collection.route {
-				let url = endpoint.url(collection.client.as_ref().and_then(|x| x.base.as_deref()));
+				let url = endpoint.url(collection.client.as_ref().and_then(|x| x.base.as_deref()))
+					.split('?')
+					.next()
+					.unwrap_or_default()
+					.to_string();
 				let method = endpoint.method.as_deref().unwrap_or("GET");
 				println!(" - {name} \t{method} \t{url}");
 				if ! compact {

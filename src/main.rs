@@ -1,11 +1,13 @@
 mod model;
 mod errors;
 mod ext;
+mod fmt;
 
 use std::str::FromStr;
 
 use clap::{Parser, Subcommand};
 
+use fmt::{PrintableResult, ReportableResult};
 use indexmap::IndexMap;
 pub use model::PostWomanCollection;
 pub use errors::PostWomanError;
@@ -26,7 +28,11 @@ struct PostWomanArgs {
 
 	/// start a multi-thread runtime, with multiple worker threads
 	#[arg(short = 'M', long, default_value_t = false)]
-	multi_threaded: bool,
+	multi_thread: bool,
+
+	/// emit json report document instead of pretty printing
+	#[arg(short = 'R', long, default_value_t = false)]
+	report: bool,
 }
 
 #[derive(Subcommand, Debug)]
@@ -57,11 +63,11 @@ pub enum PostWomanActions {
 	},
 }
 
-const TIMESTAMP_FMT: &str = "%H:%M:%S%.6f"; 
+const DEFAULT_ACTION: PostWomanActions = PostWomanActions::List { compact: true };
 
 fn main() {
 	let args = PostWomanArgs::parse();
-	let multi_thread = args.multi_threaded;
+	let multi_thread = args.multi_thread;
 
 	// if we got a regex, test it early to avoid wasting work when invalid
 	if let Some(PostWomanActions::Run { ref query, .. }) = args.action {
@@ -77,35 +83,114 @@ fn main() {
 		return;
 	}
 
-	let task = async move {
-
-		let mut pool = tokio::task::JoinSet::new();
-
-		for (collection_name, collection) in collections {
-			run_postwoman(&args, collection_name, collection, &mut pool).await;
-		}
-
-		while let Some(j) = pool.join_next().await {
-			match j {
-				Err(e) => eprintln!("! error joining task: {e}"),
-				Ok(res) => res.print(),
+	match args.action.as_ref().unwrap_or(&DEFAULT_ACTION) {
+		PostWomanActions::List { compact } => {
+			if args.report {
+				(collections, *compact).report();
+			} else {
+				(collections, *compact).print();
 			}
-		}
-	};
+		},
 
-	eprintln!("~@ {APP_USER_AGENT}");
-	if multi_thread {
-		tokio::runtime::Builder::new_multi_thread()
-			.enable_all()
-			.build()
-			.expect("failed creating tokio multi-thread runtime")
-			.block_on(task)
-	} else {
-		tokio::runtime::Builder::new_current_thread()
-			.enable_all()
-			.build()
-			.expect("failed creating tokio current-thread runtime")
-			.block_on(task)
+		PostWomanActions::Run { query, parallel, debug, dry_run } => {
+			let task = async move {
+				let mut pool = tokio::task::JoinSet::new();
+
+				for (collection_name, collection) in collections {
+					run_collection_endpoints(
+						collection_name,
+						collection,
+						query.clone(),
+						*parallel,
+						*debug,
+						*dry_run,
+						args.report,
+						&mut pool
+					).await;
+				}
+
+				while let Some(j) = pool.join_next().await {
+					if let Err(e) = j {
+						eprintln!("! error joining task: {e}");
+					}
+				}
+			};
+
+			eprintln!("~@ {APP_USER_AGENT}");
+			if multi_thread {
+				tokio::runtime::Builder::new_multi_thread()
+					.enable_all()
+					.build()
+					.expect("failed creating tokio multi-thread runtime")
+					.block_on(task)
+			} else {
+				tokio::runtime::Builder::new_current_thread()
+					.enable_all()
+					.build()
+					.expect("failed creating tokio current-thread runtime")
+					.block_on(task)
+			}
+		},
+	}
+}
+
+// TODO too many arguments
+async fn run_collection_endpoints(
+	namespace: String,
+	collection: PostWomanCollection,
+	query: String,
+	parallel: bool,
+	debug: bool,
+	dry_run: bool,
+	report: bool,
+	pool: &mut tokio::task::JoinSet<()>
+) {
+	// this is always safe to compile because we tested it beforehand
+	let pattern = regex::Regex::new(&query).expect("tested it before and still failed here???");
+	let client = std::sync::Arc::new(collection.client.unwrap_or_default());
+	let env = std::sync::Arc::new(collection.env.unwrap_or_default());
+
+	for (name, mut endpoint) in collection.route {
+		if pattern.find(&name).is_none() { continue };
+
+		if debug { endpoint.extract = Some(ext::StringOr::T(model::ExtractorConfig::Debug)) };
+		let _client = client.clone();
+		let _env = env.clone();
+		let _namespace = namespace.clone();
+
+		let task = async move {
+			let before = chrono::Local::now();
+			eprintln!(" : [{}] {_namespace}::{name} \tsending request...", before.format(fmt::TIMESTAMP_FMT));
+
+			let res = if dry_run {
+				Ok("".to_string())
+			} else {
+				endpoint
+					.fill(&_env)
+					.execute(&_client)
+					.await
+			};
+
+			let after = chrono::Local::now();
+			let elapsed = (after - before).num_milliseconds();
+
+			let timestamp = after.format(fmt::TIMESTAMP_FMT);
+			let symbol = if res.is_ok() { " + " } else { "<!>" };
+			let verb = if res.is_ok() { "done in" } else { "failed after" };
+			eprintln!("{symbol}[{timestamp}] {_namespace}::{name} \t{verb} {elapsed}ms", );
+
+			if report {
+				(res, _namespace, name, elapsed).report();
+			} else {
+				(res, _namespace, name, elapsed).print();
+			}
+		};
+
+		if parallel {
+			pool.spawn(task);
+		} else {
+			task.await;
+		}
 	}
 }
 
@@ -148,102 +233,4 @@ fn load_collections(store: &mut IndexMap<String, PostWomanCollection>, mut path:
 	}
 
 	true
-}
-
-const DEFAULT_ACTION: PostWomanActions = PostWomanActions::List { compact: true };
-type RunResult = (Result<String, PostWomanError>, String, String, chrono::DateTime<chrono::Local>);
-
-async fn run_postwoman(args: &PostWomanArgs, namespace: String, collection: PostWomanCollection, pool: &mut tokio::task::JoinSet<RunResult>) {
-	let action = args.action.as_ref().unwrap_or(&DEFAULT_ACTION);
-
-	match action {
-		PostWomanActions::List { compact } => {
-			println!("-> {namespace}");
-
-			for (key, value) in collection.env.unwrap_or_default() {
-				println!(" + {key}={}", ext::stringify_toml(&value));
-			}
-
-			for (name, mut endpoint) in collection.route {
-				println!(" - {name} \t{} \t{}", endpoint.method.as_deref().unwrap_or("GET"), endpoint.url);
-				if ! *compact {
-					if let Some(ref query) = endpoint.query {
-						for query in query {
-							println!("   |? {query}");
-						}
-					}
-					if let Some(ref headers) = endpoint.headers {
-						for header in headers {
-							println!("   |: {header}");
-						}
-					}
-					if let Some(ref _x) = endpoint.body {
-						if let Ok(body) = endpoint.body() {
-							println!("   |> {}", body.replace("\n", "\n   |> "));
-						} else {
-							println!("   |> [!] invalid body");
-						}
-					}
-				}
-			}
-
-			println!();
-		},
-		PostWomanActions::Run { query, parallel, debug, dry_run  } => {
-			// this is always safe to compile because we tested it beforehand
-			let pattern = regex::Regex::new(query).expect("tested it before and still failed here???");
-			let client = std::sync::Arc::new(collection.client.unwrap_or_default());
-			let env = std::sync::Arc::new(collection.env.unwrap_or_default());
-			for (name, mut endpoint) in collection.route {
-				if pattern.find(&name).is_some() {
-					if *debug { endpoint.extract = Some(ext::StringOr::T(model::ExtractorConfig::Debug)) };
-					let _client = client.clone();
-					let _env = env.clone();
-					let _endpoint = endpoint.clone();
-					let _dry_run = *dry_run;
-					let _name = name.clone();
-					let _namespace = namespace.clone();
-					let task = async move {
-						let before = chrono::Local::now();
-						eprintln!(" : [{}] {_namespace}::{_name} \tsending request...", before.format(TIMESTAMP_FMT));
-						if _dry_run {
-							(Ok("".to_string()), _namespace, _name, before)
-						} else {
-							let res = _endpoint
-								.fill(&_env)
-								.execute(&_client)
-								.await;
-							(res, _namespace, _name, before)
-						}
-					};
-					if *parallel {
-						pool.spawn(task);
-					} else {
-						task.await.print();
-					}
-				}
-			}
-		},
-	}
-}
-
-trait PrintableResult {
-	fn print(self);
-}
-
-impl PrintableResult for RunResult {
-	fn print(self) {
-		let (result, namespace, name, before) = self;
-		let success = result.is_ok();
-		let after = chrono::Local::now();
-		let elapsed = (after - before).num_milliseconds();
-		let timestamp = after.format(TIMESTAMP_FMT);
-		let symbol = if success { " + " } else { "<!>" };
-		let verb = if success { "done in" } else { "failed after" };
-		eprintln!("{symbol}[{timestamp}] {namespace}::{name} \t{verb} {elapsed}ms", );
-		match result {
-			Ok(x) => print!("{x}"),
-			Err(e) => eprintln!(" ! {e}"),
-		}
-	}
 }

@@ -223,11 +223,16 @@ fn replace_recursive(element: toml::Value, from: &str, to: &str) -> toml::Value 
 
 async fn format_body(res: reqwest::Response) -> Result<String, PostWomanError> {
 	match res.headers().get("Content-Type") {
-		None => Ok(res.text().await? + "\n"),
-		Some(v) => match v.to_str()? {
-			"application/json" => Ok(serde_json::to_string_pretty(&res.json::<serde_json::Value>().await?)? + "\n"),
-			"text/plain" | "text/html" => Ok(res.text().await? + "\n"),
-			_ => Ok(format!("base64({})\n", BASE64_STANDARD.encode(res.bytes().await?))),
+		None => Ok(res.text().await?),
+		Some(v) => {
+			let content_type = v.to_str()?;
+			if content_type.starts_with("application/json") {
+				Ok(serde_json::to_string_pretty(&res.json::<serde_json::Value>().await?)?)
+			} else if content_type.starts_with("text/plain") || content_type.starts_with("text/html") {
+				Ok(res.text().await?)
+			} else {
+				Ok(format!("base64({})\n", BASE64_STANDARD.encode(res.bytes().await?)))
+			}
 		},
 	}
 }

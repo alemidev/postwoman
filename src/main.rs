@@ -160,7 +160,7 @@ async fn run_collection_endpoints(
 
 		let task = async move {
 			let before = chrono::Local::now();
-			eprintln!(" : [{}] {_namespace}::{name} \tsending request...", before.format(fmt::TIMESTAMP_FMT));
+			eprintln!(" : [{}] {_namespace}:{name} \tsending request...", before.format(fmt::TIMESTAMP_FMT));
 
 			let res = if dry_run {
 				Ok("".to_string())
@@ -211,7 +211,7 @@ fn load_collections(store: &mut IndexMap<String, PostWomanCollection>, mut path:
 		},
 	};
 
-	let name = path.to_string_lossy().to_string();
+	let name = path.to_string_lossy().replace(".toml", "");
 	let mut to_include = Vec::new();
 
 	if let Some(ref includes) = collection.include {

@@ -34,3 +34,7 @@ pub fn stringify_json(v: &serde_json::Value) -> String {
 	}
 }
 
+// keep it as separate fn so we can change it everywhere easily
+pub fn full_name(namespace: &str, name: &str) -> String {
+	format!("{namespace}:{name}")
+}

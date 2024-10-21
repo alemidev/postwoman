@@ -12,5 +12,5 @@ pub struct PostWomanCollection {
 	pub env: Option<toml::Table>,
 	pub include: Option<Vec<String>>,
 	// it's weird to name it singular but makes more sense in config
-	pub route: indexmap::IndexMap<String, EndpointConfig>,
+	pub route: Option<indexmap::IndexMap<String, EndpointConfig>>,
 }

@@ -150,7 +150,7 @@ async fn run_collection_endpoints(
 	let client = std::sync::Arc::new(collection.client.unwrap_or_default());
 	let env = std::sync::Arc::new(collection.env.unwrap_or_default());
 
-	for (name, mut endpoint) in collection.route {
+	for (name, mut endpoint) in collection.route.unwrap_or_default() {
 		if pattern.find(&name).is_none() { continue };
 
 		if debug { endpoint.extract = Some(ext::StringOr::T(model::ExtractorConfig::Debug)) };

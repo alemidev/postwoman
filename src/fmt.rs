@@ -63,7 +63,7 @@ impl PrintableResult for ListResult {
 				println!(" + {key}={}", crate::ext::stringify_toml(&value));
 			}
 
-			for (name, endpoint) in collection.route {
+			for (name, endpoint) in collection.route.unwrap_or_default() {
 				let url = endpoint.url(collection.client.as_ref().and_then(|x| x.base.as_deref()))
 					.split('?')
 					.next()

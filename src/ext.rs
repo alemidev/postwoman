@@ -38,3 +38,23 @@ pub fn stringify_json(v: &serde_json::Value) -> String {
 pub fn full_name(namespace: &str, name: &str) -> String {
 	format!("{namespace}:{name}")
 }
+
+pub trait FillableFromEnvironment {
+	fn fill(self, env: &toml::Table) -> Self;
+
+	fn default_vars(env: &toml::Table) -> std::collections::HashMap<String, String> {
+		let mut vars: std::collections::HashMap<String, String> = std::collections::HashMap::default();
+
+		vars.insert("POSTWOMAN_TIMESTAMP".to_string(), chrono::Local::now().timestamp().to_string());
+
+		for (k, v) in env {
+			vars.insert(k.to_string(), stringify_toml(v));
+		}
+
+		for (k, v) in std::env::vars() {
+			vars.insert(k, v);
+		}
+
+		vars
+	}
+}

@@ -1,3 +1,5 @@
+use crate::ext::FillableFromEnvironment;
+
 
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ClientConfig {
@@ -11,4 +13,24 @@ pub struct ClientConfig {
 	pub redirects: Option<usize>,
 	/// accept invalid SSL certificates, defaults to false (be careful: this is dangerous!)
 	pub accept_invalid_certs: Option<bool>,
+}
+
+impl FillableFromEnvironment for ClientConfig {
+	fn fill(mut self, env: &toml::Table) -> Self {
+		let vars = Self::default_vars(env);
+
+		for (k, v) in vars {
+			let k_var = format!("${{{k}}}");
+
+			if let Some(base) = self.base {
+				self.base = Some(base.replace(&k_var, &v));
+			}
+
+			if let Some(user_agent) = self.user_agent {
+				self.user_agent = Some(user_agent.replace(&k_var, &v));
+			}
+		}
+
+		self
+	}
 }

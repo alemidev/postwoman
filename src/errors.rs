@@ -42,6 +42,9 @@ pub enum PostWomanError {
 
 	#[error("regex failed matching in content: {0}")]
 	NoMatch(String),
+
+	#[error("missing environment variable: {0}")]
+	MissingVar(#[from] crate::ext::FillError),
 }
 
 #[derive(Debug, thiserror::Error)]

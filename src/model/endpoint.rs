@@ -8,7 +8,7 @@ use jaq_interpret::FilterT;
 use crate::errors::InvalidHeaderError;
 use crate::{PostWomanError, APP_USER_AGENT};
 
-use crate::ext::{stringify_json, FillableFromEnvironment, StringOr};
+use crate::ext::{stringify_json, var_matcher, FillError, FillableFromEnvironment, StringOr};
 use super::{ExtractorConfig, ClientConfig};
 
 
@@ -146,71 +146,66 @@ impl EndpointConfig {
 }
 
 impl FillableFromEnvironment for EndpointConfig {
-	fn fill(mut self, env: &toml::Table) -> Self {
+	fn fill(mut self, env: &toml::Table) -> Result<Self, FillError> {
 		let vars = Self::default_vars(env);
 
-		for (k, v) in vars {
-			let k_var = format!("${{{k}}}");
-			self.path = self.path.replace(&k_var, &v);
-			if let Some(method) = self.method {
-				self.method = Some(method.replace(&k_var, &v));
-			}
-			if let Some(b) = self.body {
-				match b {
-					StringOr::Str(body) => {
-						self.body = Some(StringOr::Str(body.replace(&k_var, &v)));
-					},
-					StringOr::T(json) => {
-						let wrap = toml::Value::Table(json.clone());
-						let toml::Value::Table(out) = replace_recursive(wrap, &k_var, &v)
-						else { unreachable!("we put in a table, we get out a table") };
-						self.body = Some(StringOr::T(out));
-					},
-				}
-			}
-			if let Some(query) = self.query {
-				self.query = Some(
-					query.into_iter()
-						.map(|x| x.replace(&k_var, &v))
-						.collect()
-				);
-			}
-			if let Some(headers) = self.headers {
-				self.headers = Some(
-					headers.into_iter()
-						.map(|x| x.replace(&k_var, &v))
-						.collect()
-				);
+		self.path = Self::replace(self.path, env)?;
+		if let Some(method) = self.method {
+			self.method = Some(Self::replace(method, env)?);
+		}
+		if let Some(b) = self.body {
+			match b {
+				StringOr::Str(body) => {
+					self.body = Some(StringOr::Str(Self::replace(body, env)?));
+				},
+				StringOr::T(json) => {
+					let wrap = toml::Value::Table(json.clone());
+					let toml::Value::Table(out) = replace_recursive(wrap, env)?
+					else { unreachable!("we put in a table, we get out a table") };
+					self.body = Some(StringOr::T(out));
+				},
 			}
 		}
+		if let Some(query) = self.query {
+			for q in query {
+				q = Self::replace(q, env)?;
+			}
+			self.query = Some(query);
+		}
+		if let Some(headers) = self.headers {
+			for h in headers {
+				h = Self::replace(h, env)?;
+			}
+			self.headers = Some(headers);
+		}
 		
-		self
+		Ok(self)
 	}
 }
 
-fn replace_recursive(element: toml::Value, from: &str, to: &str) -> toml::Value {
-	match element {
+fn replace_recursive(element: toml::Value, env: &toml::Table) -> Result<toml::Value, FillError> {
+	Ok(match element {
 		toml::Value::Float(x) => toml::Value::Float(x),
 		toml::Value::Integer(x) => toml::Value::Integer(x),
 		toml::Value::Boolean(x) => toml::Value::Boolean(x),
 		toml::Value::Datetime(x) => toml::Value::Datetime(x),
-		toml::Value::String(x) => toml::Value::String(x.replace(from, to)),
-		toml::Value::Array(x) => toml::Value::Array(
-			x.into_iter().map(|x| replace_recursive(x, from, to)).collect()
-		),
+		toml::Value::String(x) => toml::Value::String(EndpointConfig::replace(x, env)?),
+		toml::Value::Array(arr) => {
+			for v in arr.iter_mut() {
+				*v = replace_recursive(v, env)?;
+			}
+			toml::Value::Array(arr)
+		},
 		toml::Value::Table(map) => {
 			let mut out = toml::map::Map::new();
 			for (k, v) in map {
-				let new_v = replace_recursive(v.clone(), from, to);
-				if k.contains(from) {
-					out.insert(k.replace(from, to), new_v);
-				} else {
-					out.insert(k.to_string(), new_v);
-				}
+				let new_v = replace_recursive(v.clone(), env)?;
+				let new_k = EndpointConfig::replace(k, env)?;
+				out.insert(new_k, new_v);
 			}
 			toml::Value::Table(out)
 		},
-	}
+	})
 }
 
 async fn format_body(res: reqwest::Response) -> Result<String, PostWomanError> {

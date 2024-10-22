@@ -59,12 +59,12 @@ impl PrintableResult for ListResult {
 		for (namespace, collection) in collections {
 			println!("-> {namespace}");
 
-			for (key, value) in collection.env.unwrap_or_default() {
+			for (key, value) in collection.env {
 				println!(" + {key}={}", crate::ext::stringify_toml(&value));
 			}
 
-			for (name, endpoint) in collection.route.unwrap_or_default() {
-				let url = endpoint.url(collection.client.as_ref().and_then(|x| x.base.as_deref()))
+			for (name, endpoint) in collection.route {
+				let url = endpoint.url(collection.client.base.as_deref())
 					.split('?')
 					.next()
 					.unwrap_or_default()

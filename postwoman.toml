@@ -1,12 +1,13 @@
+include = ["other.toml", "api/auth.toml"] # include other postwoman collections relative to this one
+
+[env] # these will be replaced in fields and inherited by includes. environment vars overrule these
+PW_TOKEN = "set-me-as-and-environment-variable!"
+
 [client] # HTTP client configuration
 user_agent = "postwoman@sample/0.4.1"
 timeout = 60 # max time for each request to complete, in seconds
 redirects = 5 # allow up to five redirects, defaults to none
 base = "https://api.alemi.dev" # all route urls will be appended to this base
-
-[env] # these will be replaced in routes options. environment vars overrule these
-PW_TOKEN = "set-me-as-and-environment-variable!"
-
 
 
 [route.healthcheck] # the simplest possible route: just name and path

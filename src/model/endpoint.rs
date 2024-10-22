@@ -1,4 +1,4 @@
-use std::{collections::HashMap, str::FromStr};
+use std::str::FromStr;
 
 use base64::{prelude::BASE64_STANDARD, Engine};
 use http::method::InvalidMethod;
@@ -8,7 +8,7 @@ use jaq_interpret::FilterT;
 use crate::errors::InvalidHeaderError;
 use crate::{PostWomanError, APP_USER_AGENT};
 
-use crate::ext::{stringify_json, stringify_toml, FillableFromEnvironment, StringOr};
+use crate::ext::{stringify_json, FillableFromEnvironment, StringOr};
 use super::{ExtractorConfig, ClientConfig};
 
 

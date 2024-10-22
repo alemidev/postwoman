@@ -7,6 +7,7 @@ use std::str::FromStr;
 
 use clap::{Parser, Subcommand};
 
+use ext::FillableFromEnvironment;
 use fmt::{PrintableResult, ReportableResult};
 use indexmap::IndexMap;
 pub use model::PostWomanCollection;
@@ -79,7 +80,7 @@ fn main() {
 
 	let mut collections = IndexMap::new();
 
-	if !load_collections(&mut collections, args.collection.clone()) {
+	if !load_collections(&mut collections, args.collection.clone(), &toml::Table::default()) {
 		return;
 	}
 
@@ -147,10 +148,10 @@ async fn run_collection_endpoints(
 ) {
 	// this is always safe to compile because we tested it beforehand
 	let pattern = regex::Regex::new(&query).expect("tested it before and still failed here???");
-	let client = std::sync::Arc::new(collection.client.unwrap_or_default());
-	let env = std::sync::Arc::new(collection.env.unwrap_or_default());
+	let env = std::sync::Arc::new(collection.env);
+	let client = std::sync::Arc::new(collection.client.fill(&env));
 
-	for (name, mut endpoint) in collection.route.unwrap_or_default() {
+	for (name, mut endpoint) in collection.route {
 		let full_name = ext::full_name(&namespace, &name);
 		if pattern.find(&full_name).is_none() { continue };
 
@@ -195,7 +196,7 @@ async fn run_collection_endpoints(
 	}
 }
 
-fn load_collections(store: &mut IndexMap<String, PostWomanCollection>, mut path: std::path::PathBuf) -> bool {
+fn load_collections(store: &mut IndexMap<String, PostWomanCollection>, mut path: std::path::PathBuf, parent_env: &toml::Table) -> bool {
 	let collection_raw = match std::fs::read_to_string(&path) {
 		Ok(x) => x,
 		Err(e) => {
@@ -204,7 +205,7 @@ fn load_collections(store: &mut IndexMap<String, PostWomanCollection>, mut path:
 		},
 	};
 
-	let collection: PostWomanCollection = match toml::from_str(&collection_raw) {
+	let mut collection: PostWomanCollection = match toml::from_str(&collection_raw) {
 		Ok(x) => x,
 		Err(e) => {
 			eprintln!("! error parsing collection {path:?}: {e}");
@@ -212,23 +213,24 @@ fn load_collections(store: &mut IndexMap<String, PostWomanCollection>, mut path:
 		},
 	};
 
+	collection.env.extend(parent_env.iter().map(|(k, v)| (k.clone(), v.clone())));
+
 	let name = path.to_string_lossy().replace(".toml", "");
 	let mut to_include = Vec::new();
 
-	if let Some(ref includes) = collection.include {
-		path.pop();
-		for include in includes {
-			let mut base = path.clone();
-			let new = std::path::PathBuf::from_str(include).expect("infallible");
-			base.push(new);
-			to_include.push(base);
-		}
+	path.pop();
+	for include in &collection.include {
+		let mut base = path.clone();
+		let new = std::path::PathBuf::from_str(include).expect("infallible");
+		base.push(new);
+		to_include.push(base);
 	}
 
+	let parent_env = collection.env.clone();
 	store.insert(name, collection);
 
 	for base in to_include {
-		if !load_collections(store, base) {
+		if !load_collections(store, base, &parent_env) {
 			return false;
 		}
 	}

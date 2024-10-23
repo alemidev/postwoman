@@ -40,7 +40,7 @@ pub fn stringify_json(v: &serde_json::Value) -> String {
 
 pub fn var_matcher() -> &'static regex::Regex {
 	static MATCHER : OnceLock<regex::Regex> = OnceLock::new();
-	MATCHER.get_or_init(|| regex::Regex::new(r"\$\{(.*)\}").expect("wrong matcher regex"))
+	MATCHER.get_or_init(|| regex::Regex::new(r"\$\{(\w+)\}").expect("wrong matcher regex"))
 }
 
 // keep it as separate fn so we can change it everywhere easily

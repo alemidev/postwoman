@@ -149,7 +149,10 @@ async fn run_collection_endpoints(
 	// this is always safe to compile because we tested it beforehand
 	let pattern = regex::Regex::new(&query).expect("tested it before and still failed here???");
 	let env = std::sync::Arc::new(collection.env);
-	let client = std::sync::Arc::new(collection.client.fill(&env));
+	let client = match collection.client.fill(&env) {
+		Ok(c) => std::sync::Arc::new(c),
+		Err(e) => return eprintln!("[!]error preparing client for '{namespace}': {e}"),
+	};
 
 	for (name, mut endpoint) in collection.route {
 		let full_name = ext::full_name(&namespace, &name);
@@ -164,13 +167,13 @@ async fn run_collection_endpoints(
 			let before = chrono::Local::now();
 			eprintln!(" : [{}] {full_name} \tsending request...", before.format(fmt::TIMESTAMP_FMT));
 
-			let res = if dry_run {
-				Ok("".to_string())
-			} else {
-				endpoint
-					.fill(&_env)
-					.execute(&_client)
-					.await
+			let res = match endpoint.fill(&_env) {
+				Ok(e) => if dry_run {
+					Ok("".to_string())
+				} else {
+					e.execute(&_client).await
+				},
+				Err(e) => Err(e.into()),
 			};
 
 			let after = chrono::Local::now();
@@ -179,7 +182,7 @@ async fn run_collection_endpoints(
 			let timestamp = after.format(fmt::TIMESTAMP_FMT);
 			let symbol = if res.is_ok() { " + " } else { "<!>" };
 			let verb = if res.is_ok() { "done in" } else { "failed after" };
-			eprintln!("{symbol}[{timestamp}] {_namespace}::{name} \t{verb} {elapsed}ms", );
+			eprintln!("{symbol}[{timestamp}] {_namespace}:{name} \t{verb} {elapsed}ms", );
 
 			if report {
 				(res, _namespace, name, elapsed).report();

@@ -209,16 +209,24 @@ fn replace_recursive(element: toml::Value, env: &toml::Table) -> Result<toml::Va
 }
 
 async fn format_body(res: reqwest::Response) -> Result<String, PostWomanError> {
-	match res.headers().get("Content-Type") {
-		None => Ok(res.text().await?),
+	let content_type = res.headers().get("Content-Type").cloned();
+	let raw = res.bytes().await?;
+	match content_type {
+		None => Ok(String::from_utf8_lossy(&raw).to_string()),
 		Some(v) => {
 			let content_type = v.to_str()?;
 			if content_type.starts_with("application/json") {
-				Ok(serde_json::to_string_pretty(&res.json::<serde_json::Value>().await?)?)
+				match serde_json::from_slice::<serde_json::Value>(&raw) {
+					Ok(x) => Ok(serde_json::to_string_pretty(&x)?),
+					Err(e) => {
+						eprintln!(" ? content-type is 'json' but content is not valid json: {e}");
+						Ok(String::from_utf8_lossy(&raw).to_string())
+					},
+				}
 			} else if content_type.starts_with("text/plain") || content_type.starts_with("text/html") {
-				Ok(res.text().await?)
+				Ok(String::from_utf8_lossy(&raw).to_string())
 			} else {
-				Ok(format!("base64({})\n", BASE64_STANDARD.encode(res.bytes().await?)))
+				Ok(format!("base64({})\n", BASE64_STANDARD.encode(raw)))
 			}
 		},
 	}

@@ -1,6 +1,4 @@
-use std::sync::OnceLock;
-
-use crate::PostWomanError;
+use std::{collections::HashMap, sync::OnceLock};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(untagged)]
@@ -55,7 +53,7 @@ pub struct FillError(pub String);
 pub trait FillableFromEnvironment: Sized {
 	fn fill(self, env: &toml::Table) -> Result<Self, FillError>;
 
-	fn replace(mut from: String, env: &toml::Table) -> Result<String, FillError> {
+	fn replace(mut from: String, env: &HashMap<String, String>) -> Result<String, FillError> {
 		let placeholders: Vec<(String, String)> = var_matcher()
 			.captures_iter(&from)
 			.map(|m| m.extract())
@@ -67,7 +65,7 @@ pub trait FillableFromEnvironment: Sized {
 
 		for (txt, var) in placeholders {
 			let value = env.get(&var).ok_or(FillError(var.to_string()))?;
-			from = from.replace(&txt, &stringify_toml(value));
+			from = from.replace(&txt, value);
 		}
 
 		Ok(from)

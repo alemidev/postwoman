@@ -1,4 +1,4 @@
-use crate::ext::FillableFromEnvironment;
+use crate::ext::{FillError, FillableFromEnvironment};
 
 
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
@@ -16,21 +16,17 @@ pub struct ClientConfig {
 }
 
 impl FillableFromEnvironment for ClientConfig {
-	fn fill(mut self, env: &toml::Table) -> Self {
+	fn fill(mut self, env: &toml::Table) -> Result<Self, FillError> {
 		let vars = Self::default_vars(env);
 
-		for (k, v) in vars {
-			let k_var = format!("${{{k}}}");
-
-			if let Some(base) = self.base {
-				self.base = Some(base.replace(&k_var, &v));
-			}
-
-			if let Some(user_agent) = self.user_agent {
-				self.user_agent = Some(user_agent.replace(&k_var, &v));
-			}
+		if let Some(ref base) = self.base {
+			self.base = Some(Self::replace(base.clone(), &vars)?);
 		}
 
-		self
+		if let Some(ref user_agent) = self.user_agent {
+			self.user_agent = Some(Self::replace(user_agent.clone(), &vars)?);
+		}
+
+		Ok(self)
 	}
 }

@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::str::FromStr;
 
 use base64::{prelude::BASE64_STANDARD, Engine};
@@ -8,7 +9,7 @@ use jaq_interpret::FilterT;
 use crate::errors::InvalidHeaderError;
 use crate::{PostWomanError, APP_USER_AGENT};
 
-use crate::ext::{stringify_json, var_matcher, FillError, FillableFromEnvironment, StringOr};
+use crate::ext::{stringify_json, FillError, FillableFromEnvironment, StringOr};
 use super::{ExtractorConfig, ClientConfig};
 
 
@@ -149,50 +150,52 @@ impl FillableFromEnvironment for EndpointConfig {
 	fn fill(mut self, env: &toml::Table) -> Result<Self, FillError> {
 		let vars = Self::default_vars(env);
 
-		self.path = Self::replace(self.path, env)?;
+		self.path = Self::replace(self.path, &vars)?;
 		if let Some(method) = self.method {
-			self.method = Some(Self::replace(method, env)?);
+			self.method = Some(Self::replace(method, &vars)?);
 		}
 		if let Some(b) = self.body {
 			match b {
 				StringOr::Str(body) => {
-					self.body = Some(StringOr::Str(Self::replace(body, env)?));
+					self.body = Some(StringOr::Str(Self::replace(body, &vars)?));
 				},
 				StringOr::T(json) => {
-					let wrap = toml::Value::Table(json.clone());
-					let toml::Value::Table(out) = replace_recursive(wrap, env)?
+					let wrap = toml::Value::Table(json);
+					let toml::Value::Table(out) = replace_recursive(wrap, &vars)?
 					else { unreachable!("we put in a table, we get out a table") };
 					self.body = Some(StringOr::T(out));
 				},
 			}
 		}
 		if let Some(query) = self.query {
+			let mut out = Vec::new();
 			for q in query {
-				q = Self::replace(q, env)?;
+				out.push(Self::replace(q, &vars)?);
 			}
-			self.query = Some(query);
+			self.query = Some(out);
 		}
 		if let Some(headers) = self.headers {
+			let mut out = Vec::new();
 			for h in headers {
-				h = Self::replace(h, env)?;
+				out.push(Self::replace(h.clone(), &vars)?);
 			}
-			self.headers = Some(headers);
+			self.headers = Some(out);
 		}
 		
 		Ok(self)
 	}
 }
 
-fn replace_recursive(element: toml::Value, env: &toml::Table) -> Result<toml::Value, FillError> {
+fn replace_recursive(element: toml::Value, env: &HashMap<String, String>) -> Result<toml::Value, FillError> {
 	Ok(match element {
 		toml::Value::Float(x) => toml::Value::Float(x),
 		toml::Value::Integer(x) => toml::Value::Integer(x),
 		toml::Value::Boolean(x) => toml::Value::Boolean(x),
 		toml::Value::Datetime(x) => toml::Value::Datetime(x),
 		toml::Value::String(x) => toml::Value::String(EndpointConfig::replace(x, env)?),
-		toml::Value::Array(arr) => {
+		toml::Value::Array(mut arr) => {
 			for v in arr.iter_mut() {
-				*v = replace_recursive(v, env)?;
+				*v = replace_recursive(v.clone(), env)?;
 			}
 			toml::Value::Array(arr)
 		},

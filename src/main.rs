@@ -70,14 +70,6 @@ fn main() {
 	let args = PostWomanArgs::parse();
 	let multi_thread = args.multi_thread;
 
-	// if we got a regex, test it early to avoid wasting work when invalid
-	if let Some(PostWomanActions::Run { ref query, .. }) = args.action {
-		// note that if you remove this test, there's another .expect() below you need to manage too!
-		if let Err(e) = regex::Regex::new(query) {
-			return eprintln!("! invalid regex filter: {e}");
-		}
-	}
-
 	let mut collections = IndexMap::new();
 
 	if !load_collections(&mut collections, args.collection.clone(), &toml::Table::default()) {
@@ -94,6 +86,11 @@ fn main() {
 		},
 
 		PostWomanActions::Run { query, parallel, debug, dry_run } => {
+			// note that if you remove this test, there's another .expect() below you need to manage too!
+			let filter = match regex::Regex::new(query) {
+				Ok(regex) => regex,
+				Err(e) => return eprintln!("! invalid regex filter: {e}"),
+			};
 			let task = async move {
 				let mut pool = tokio::task::JoinSet::new();
 
@@ -101,7 +98,7 @@ fn main() {
 					run_collection_endpoints(
 						collection_name,
 						collection,
-						query.clone(),
+						filter.clone(),
 						*parallel,
 						*debug,
 						*dry_run,
@@ -138,25 +135,39 @@ fn main() {
 // TODO too many arguments
 async fn run_collection_endpoints(
 	namespace: String,
-	collection: PostWomanCollection,
-	query: String,
+	mut collection: PostWomanCollection,
+	filter: regex::Regex,
 	parallel: bool,
 	debug: bool,
 	dry_run: bool,
 	report: bool,
 	pool: &mut tokio::task::JoinSet<()>
 ) {
-	// this is always safe to compile because we tested it beforehand
-	let pattern = regex::Regex::new(&query).expect("tested it before and still failed here???");
+	let mut matched_endpoints = Vec::new();
+	for name in collection.route.keys() {
+		let full_name = ext::full_name(&namespace, name);
+		if filter.find(&full_name).is_some() {
+			matched_endpoints.push(name.clone());
+		};
+	}
+
+	if matched_endpoints.is_empty() { return } // nothing to do for this collection
+
 	let env = std::sync::Arc::new(collection.env);
 	let client = match collection.client.fill(&env) {
 		Ok(c) => std::sync::Arc::new(c),
-		Err(e) => return eprintln!("[!]error preparing client for '{namespace}': {e}"),
+		Err(e) => return eprintln!(
+			"<!>[{}] {namespace}:* \terror constructing client\n ! missing environment variable: {e}",
+			chrono::Local::now().format(fmt::TIMESTAMP_FMT)
+		),
 	};
 
-	for (name, mut endpoint) in collection.route {
+	for name in matched_endpoints {
+		let mut endpoint = collection.route
+			.swap_remove(&name)
+			.expect("endpoint removed while running collection?");
 		let full_name = ext::full_name(&namespace, &name);
-		if pattern.find(&full_name).is_none() { continue };
+		if filter.find(&full_name).is_none() { continue };
 
 		if debug { endpoint.extract = Some(ext::StringOr::T(model::ExtractorConfig::Debug)) };
 		let _client = client.clone();
@@ -165,15 +176,17 @@ async fn run_collection_endpoints(
 
 		let task = async move {
 			let before = chrono::Local::now();
-			eprintln!(" : [{}] {full_name} \tsending request...", before.format(fmt::TIMESTAMP_FMT));
 
 			let res = match endpoint.fill(&_env) {
-				Ok(e) => if dry_run {
-					Ok("".to_string())
-				} else {
-					e.execute(&_client).await
-				},
 				Err(e) => Err(e.into()),
+				Ok(e) => {
+					eprintln!(" : [{}] {full_name} \tsending request...", before.format(fmt::TIMESTAMP_FMT));
+					if dry_run {
+						Ok("".to_string())
+					} else {
+						e.execute(&_client).await
+					}
+				},
 			};
 
 			let after = chrono::Local::now();

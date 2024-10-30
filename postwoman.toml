@@ -1,4 +1,4 @@
-include = ["other.toml", "api/auth.toml"] # include other postwoman collections relative to this one
+#include = ["other.toml", "api/auth.toml"] # include other postwoman collections relative to this one
 
 [env] # these will be replaced in fields and inherited by includes. environment vars overrule these
 PW_TOKEN = "set-me-as-and-environment-variable!"

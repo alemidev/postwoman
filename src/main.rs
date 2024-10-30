@@ -24,8 +24,8 @@ struct PostWomanArgs {
 	collection: std::path::PathBuf,
 
 	/// environment (.env) to load
-	#[arg(short, long, default_value = "")]
-	env: String,
+	#[arg(short, long, default_value = ".env")]
+	env: std::path::PathBuf,
 
 	/// action to run
 	#[clap(subcommand)]
@@ -92,8 +92,8 @@ fn main() {
 		PostWomanActions::Run { query, parallel, debug, dry_run } => {
 			eprintln!("~@ {APP_USER_AGENT}");
 
-			if let Err(e) = dotenv::from_filename(format!("{}.env", args.env)) {
-				eprintln!(" !  error loading env file: {e}");
+			if dotenv::from_path(&args.env).is_ok() {
+				eprintln!(" # loaded env file {:?}", args.env);
 			}
 
 			// note that if you remove this test, there's another .expect() below you need to manage too!

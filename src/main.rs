@@ -72,7 +72,7 @@ fn main() {
 
 	let mut collections = IndexMap::new();
 
-	if !load_collections(&mut collections, args.collection.clone(), &toml::Table::default()) {
+	if !load_collections(&mut collections, args.collection.clone()) {
 		return;
 	}
 
@@ -212,7 +212,7 @@ async fn run_collection_endpoints(
 	}
 }
 
-fn load_collections(store: &mut IndexMap<String, PostWomanCollection>, mut path: std::path::PathBuf, parent_env: &toml::Table) -> bool {
+fn load_collections(store: &mut IndexMap<String, PostWomanCollection>, mut path: std::path::PathBuf) -> bool {
 	let collection_raw = match std::fs::read_to_string(&path) {
 		Ok(x) => x,
 		Err(e) => {
@@ -221,15 +221,13 @@ fn load_collections(store: &mut IndexMap<String, PostWomanCollection>, mut path:
 		},
 	};
 
-	let mut collection: PostWomanCollection = match toml::from_str(&collection_raw) {
+	let collection: PostWomanCollection = match toml::from_str(&collection_raw) {
 		Ok(x) => x,
 		Err(e) => {
 			eprintln!("! error parsing collection {path:?}: {e}");
 			return false;
 		},
 	};
-
-	collection.env.extend(parent_env.iter().map(|(k, v)| (k.clone(), v.clone())));
 
 	let name = path.to_string_lossy().replace(".toml", "");
 	let mut to_include = Vec::new();
@@ -242,11 +240,10 @@ fn load_collections(store: &mut IndexMap<String, PostWomanCollection>, mut path:
 		to_include.push(base);
 	}
 
-	let parent_env = collection.env.clone();
 	store.insert(name, collection);
 
 	for base in to_include {
-		if !load_collections(store, base, &parent_env) {
+		if !load_collections(store, base) {
 			return false;
 		}
 	}

@@ -23,6 +23,10 @@ struct PostWomanArgs {
 	#[arg(short, long, default_value = "postwoman.toml")]
 	collection: std::path::PathBuf,
 
+	/// environment (.env) to load
+	#[arg(short, long, default_value = "")]
+	env: String,
+
 	/// action to run
 	#[clap(subcommand)]
 	action: Option<PostWomanActions>,
@@ -86,6 +90,12 @@ fn main() {
 		},
 
 		PostWomanActions::Run { query, parallel, debug, dry_run } => {
+			eprintln!("~@ {APP_USER_AGENT}");
+
+			if let Err(e) = dotenv::from_filename(format!("{}.env", args.env)) {
+				eprintln!(" !  error loading env file: {e}");
+			}
+
 			// note that if you remove this test, there's another .expect() below you need to manage too!
 			let filter = match regex::Regex::new(query) {
 				Ok(regex) => regex,
@@ -114,7 +124,6 @@ fn main() {
 				}
 			};
 
-			eprintln!("~@ {APP_USER_AGENT}");
 			if multi_thread {
 				tokio::runtime::Builder::new_multi_thread()
 					.enable_all()

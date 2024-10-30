@@ -1,5 +1,10 @@
 use std::{collections::HashMap, sync::OnceLock};
 
+pub fn sid() -> &'static str {
+	static SID: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+	SID.get_or_init(|| uuid::Uuid::new_v4().to_string())
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(untagged)]
 pub enum StringOr<T> {
@@ -75,6 +80,8 @@ pub trait FillableFromEnvironment: Sized {
 		let mut vars: std::collections::HashMap<String, String> = std::collections::HashMap::default();
 
 		vars.insert("POSTWOMAN_TIMESTAMP".to_string(), chrono::Local::now().timestamp().to_string());
+		vars.insert("POSTWOMAN_LOCAL_ID".to_string(), uuid::Uuid::new_v4().to_string());
+		vars.insert("POSTWOMAN_SESSION_ID".to_string(), sid().to_string());
 
 		for (k, v) in env {
 			vars.insert(k.to_string(), stringify_toml(v));

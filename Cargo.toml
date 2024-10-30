@@ -25,6 +25,7 @@ thiserror = "1.0.64"
 tokio = { version = "1.40", features = ["rt-multi-thread"] }
 toml = { version = "0.8", features = ["preserve_order"] }
 toml_edit = { version = "0.22", features = ["serde"] } # only to pretty print tables ...
+uuid = { version = "1.11", features = ["v4"] }
 
 [profile.release]
 opt-level = "z"

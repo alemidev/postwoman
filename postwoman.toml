@@ -16,14 +16,9 @@ path = "/"
 [route.debug]
 path = "/debug"
 method = "PUT" # specify request method
-query = [ # specify query parameters in a more friendly way
-	"body=json",
-	"cache=0"
-]
-headers = [ # add custom headers to request
-	"Content-Type: application/json",
-	"Authorization: Bearer ${PW_TOKEN}",
-]
+# specify query parameters in a more friendly way
+query = { body = "json", cache = 0 }
+headers = { Content-Type = "application/json", Authorization = "Bearer ${PW_TOKEN}" }
 body = { hello = "world!", success = true } # body can be a bare string, or an inline table (will be converted to json)
 extract = { type = "body" } # get the whole response body, this is the default extractor
 
@@ -36,6 +31,21 @@ path = "https://cdn.alemi.dev/does-not-exist"
 absolute = true # mark as absolute to avoid composing with client base url
 status = 404 # it's possible to specify expected status code, will fail if doesn't match
 extract = { type = "regex", pattern = 'nginx/[0-9\.]+' } # extract from response with regex
+
+[route.many-headers]
+path = "/debug"
+	[route.many-headers.headers]
+	If = "you"
+	Have = "many"
+	Headers = "or"
+	Query = "parameters"
+	Its = "possible"
+	To = "just"
+	Use = "a"
+	Sub = "table"
+	Like = "this"
+	# be careful that indentation is only visual: if you want to put body or query below
+	#  you need to put again the [route.many-headers] or have them before this sub-table
 
 [route.payload]
 path = "/debug"

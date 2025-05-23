@@ -72,17 +72,27 @@ impl PrintableResult for ListResult {
 				let method = endpoint.method.as_deref().unwrap_or("GET");
 				if !compact { println!("|") };
 				println!("|- {name: <30} {method: <10} {url}");
-				if ! compact {
-					if let Some(ref query) = endpoint.query {
-						for (i, query) in query.iter().enumerate() {
-							println!("| {}| {query}", if i == 0 { "Q" } else { " " });
+				if !compact {
+					match endpoint.query {
+						None => {},
+						Some(StringOr::Str(ref query)) => println!("| Q| {query}"),
+						Some(StringOr::T(ref query_map)) => {
+							for (i, (k, v)) in query_map.iter().enumerate() {
+								println!("| {}| {k} = {v}", if i == 0 { "Q" } else { " " });
+							}
 						}
 					}
-					if let Some(ref headers) = endpoint.headers {
-						for (i, header) in headers.iter().enumerate() {
-							println!("| {}| {header}", if i == 0 { "H" } else { " " });
+
+					match endpoint.headers {
+						None => {},
+						Some(StringOr::Str(ref header)) => println!("| H| {header}"),
+						Some(StringOr::T(ref header_map)) => {
+							for (i, (k, v)) in header_map.iter().enumerate() {
+								println!("| {}| {k} : {v}", if i == 0 { "H" } else { " " });
+							}
 						}
 					}
+
 					if let Some(ref _x) = endpoint.body {
 						if let Ok(body) = endpoint.body() {
 							println!("| B| {}", body.replace("\n", "\n|  | "));

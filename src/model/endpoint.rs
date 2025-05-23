@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::str::FromStr;
 
 use base64::{prelude::BASE64_STANDARD, Engine};
@@ -22,9 +21,9 @@ pub struct EndpointConfig {
 	/// http method for request, default GET
 	pub method: Option<String>,
 	/// query parameters, appended to base url
-	pub query: Option<Vec<String>>,
+	pub query: Option<StringOr<toml::Table>>,
 	/// headers for request, array of "key: value" pairs
-	pub headers: Option<Vec<String>>,
+	pub headers: Option<StringOr<toml::Table>>,
 	/// body, optional string
 	pub body: Option<StringOr<toml::Table>>,
 	/// expected error code, will fail if different, defaults to 200
@@ -51,15 +50,30 @@ impl EndpointConfig {
 		}
 	}
 
-	pub fn headers(&self) -> Result<HeaderMap, InvalidHeaderError> {
+	pub fn headers(&self, opts: &ClientConfig) -> Result<HeaderMap, InvalidHeaderError> {
 		let mut headers = HeaderMap::default();
-		for header in self.headers.as_deref().unwrap_or(&[]) {
-			let (k, v) = header.split_once(':')
-				.ok_or_else(|| InvalidHeaderError::Format(header.clone()))?;
-			headers.insert(
-				HeaderName::from_str(k)?,
-				HeaderValue::from_str(v)?
-			);
+		for header_map in [&opts.headers, &self.headers] {
+			match header_map {
+				None => {},
+				Some(StringOr::Str(ref h)) => {
+					let (k, v) = h.split_once(':')
+						.ok_or_else(|| InvalidHeaderError::Format(h.clone()))?;
+					headers.insert(
+						HeaderName::from_str(k)?,
+						HeaderValue::from_str(v)?,
+					);
+				},
+				Some(StringOr::T(ref h)) => {
+					for (k, raw_v) in h {
+						let v = raw_v.to_string();
+						headers.insert(
+							HeaderName::from_str(k)?,
+							HeaderValue::from_str(&v)?,
+						);
+
+					}
+				},
+			}
 		}
 		Ok(headers)
 	}
@@ -70,8 +84,22 @@ impl EndpointConfig {
 		} else {
 			format!("{}{}", base.unwrap_or_default(), self.path)
 		};
-		if let Some(ref query) = self.query {
-			url = format!("{url}?{}", query.join("&"));
+
+		match self.query {
+			None => {},
+			Some(StringOr::Str(ref q)) => {
+				url = format!("{url}?{q}");
+			},
+			Some(StringOr::T(ref q)) => {
+				url = format!(
+					"{url}?{}",
+					q
+						.iter()
+						.map(|(k, v)| format!("{k}={v}"))
+						.collect::<Vec<String>>()
+						.join("&")
+				);
+			},
 		}
 		url
 	}
@@ -79,8 +107,8 @@ impl EndpointConfig {
 	pub async fn execute(self, opts: &ClientConfig) -> Result<String, PostWomanError> {
 		let body = self.body()?;
 		let method = self.method()?;
-		let headers = self.headers()?;
 		let url = self.url(opts.base.as_deref());
+		let headers = self.headers(opts)?;
 
 		let client = reqwest::Client::builder()
 			.user_agent(opts.user_agent.as_deref().unwrap_or(APP_USER_AGENT))
@@ -156,61 +184,18 @@ impl FillableFromEnvironment for EndpointConfig {
 		if let Some(method) = self.method {
 			self.method = Some(Self::replace(method, &vars)?);
 		}
-		if let Some(b) = self.body {
-			match b {
-				StringOr::Str(body) => {
-					self.body = Some(StringOr::Str(Self::replace(body, &vars)?));
-				},
-				StringOr::T(json) => {
-					let wrap = toml::Value::Table(json);
-					let toml::Value::Table(out) = replace_recursive(wrap, &vars)?
-					else { unreachable!("we put in a table, we get out a table") };
-					self.body = Some(StringOr::T(out));
-				},
-			}
+		if let Some(body) = self.body {
+			self.body = Some(Self::replace(body, &vars)?);
 		}
 		if let Some(query) = self.query {
-			let mut out = Vec::new();
-			for q in query {
-				out.push(Self::replace(q, &vars)?);
-			}
-			self.query = Some(out);
+			self.query = Some(Self::replace(query, &vars)?);
 		}
 		if let Some(headers) = self.headers {
-			let mut out = Vec::new();
-			for h in headers {
-				out.push(Self::replace(h.clone(), &vars)?);
-			}
-			self.headers = Some(out);
+			self.headers = Some(Self::replace(headers, &vars)?);
 		}
 		
 		Ok(self)
 	}
-}
-
-fn replace_recursive(element: toml::Value, env: &HashMap<String, String>) -> Result<toml::Value, FillError> {
-	Ok(match element {
-		toml::Value::Float(x) => toml::Value::Float(x),
-		toml::Value::Integer(x) => toml::Value::Integer(x),
-		toml::Value::Boolean(x) => toml::Value::Boolean(x),
-		toml::Value::Datetime(x) => toml::Value::Datetime(x),
-		toml::Value::String(x) => toml::Value::String(EndpointConfig::replace(x, env)?),
-		toml::Value::Array(mut arr) => {
-			for v in arr.iter_mut() {
-				*v = replace_recursive(v.clone(), env)?;
-			}
-			toml::Value::Array(arr)
-		},
-		toml::Value::Table(map) => {
-			let mut out = toml::map::Map::new();
-			for (k, v) in map {
-				let new_v = replace_recursive(v.clone(), env)?;
-				let new_k = EndpointConfig::replace(k, env)?;
-				out.insert(new_k, new_v);
-			}
-			toml::Value::Table(out)
-		},
-	})
 }
 
 async fn format_body(res: reqwest::Response) -> Result<String, PostWomanError> {

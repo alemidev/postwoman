@@ -97,7 +97,7 @@ fn main() {
 			}
 
 			// note that if you remove this test, there's another .expect() below you need to manage too!
-			let filter = match regex::Regex::new(query) {
+			let filter = match regex::Regex::new(&format!("{query}$")) {
 				Ok(regex) => regex,
 				Err(e) => return eprintln!("! invalid regex filter: {e}"),
 			};
@@ -170,7 +170,7 @@ async fn run_collection_endpoints(
 			.swap_remove(&name)
 			.expect("endpoint removed while running collection?");
 		let full_name = ext::full_name(&namespace, &name);
-		if filter.find(&full_name).is_none() { continue };
+		if !filter.is_match(&full_name) { continue };
 
 		if debug { endpoint.extract = Some(ext::StringOr::T(model::ExtractorConfig::Debug)) };
 		let _client = client.clone();

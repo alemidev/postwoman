@@ -109,10 +109,7 @@ fn main() {
 						collection_name,
 						collection,
 						filter.clone(),
-						*parallel,
-						*debug,
-						*dry_run,
-						args.report,
+						(*parallel, *debug, *dry_run, args.report),
 						&mut pool
 					).await;
 				}
@@ -146,10 +143,7 @@ async fn run_collection_endpoints(
 	namespace: String,
 	mut collection: PostWomanCollection,
 	filter: regex::Regex,
-	parallel: bool,
-	debug: bool,
-	dry_run: bool,
-	report: bool,
+	(parallel, debug, dry_run, report): (bool, bool, bool, bool),
 	pool: &mut tokio::task::JoinSet<()>
 ) {
 	let mut matched_endpoints = Vec::new();

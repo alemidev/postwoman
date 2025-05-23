@@ -1,9 +1,10 @@
 # PostWoman
-[![Actions Status](https://github.com/alemidev/postwoman/actions/workflows/test.yml/badge.svg)](https://github.com/alemidev/postwoman/actions)
+[![Actions Status](https://github.com/alemidev/postwoman/actions/workflows/test.yml/badge.svg)](https://github.com/alemidev/postwoman/actions/workflows/test.yml)
+[![Actions Status](https://github.com/alemidev/postwoman/actions/workflows/release.yml/badge.svg)](https://github.com/alemidev/postwoman/actions/workflows/release.yml)
 [![Crates.io Version](https://img.shields.io/crates/v/postwoman)](https://crates.io/crates/postwoman)
 [![Crates.io Downloads (latest version)](https://img.shields.io/crates/dv/postwoman)](https://crates.io/crates/postwoman)
 [![GitHub last commit](https://img.shields.io/github/last-commit/alemidev/postwoman)](https://github.com/alemidev/postwoman/commits/dev/)
-[![GitHub Issues or Pull Requests](https://img.shields.io/github/issues/alemidev/postwoman)](https://github.com/alemidev/postwoman/issues)
+[![GitHub commits since tagged version](https://img.shields.io/github/commits-since/alemidev/postwoman/v0.2)](https://github.com/alemidev/postwoman/releases/tag/v0.2)
 
 A CLI api tester and request builder, totally not born out of frustration from some other tool...
 
@@ -15,7 +16,7 @@ As an example, most API test tools have features to automatically split down que
 While PostWoman will never be as fully featured as other graphical tools, it doesn't need to be to provide a solid API testing framework.
 
 # Usage
-Install with `cargo install postwoman`
+Install with `cargo install postwoman`, or download a pre-built binary from the [releases](https://github.com/alemidev/postwoman/releases) page
 
 `postwoman` expects a `postwoman.toml` collection in your cwd. A different file or path can be specified with the global `-c` option.
 

@@ -1,7 +1,7 @@
 
 #[derive(Debug, thiserror::Error)]
 pub enum PostWomanError {
-	#[error("network error: {0:?}")]
+	#[error("network error: {0:#?}")]
 	Request(#[from] reqwest::Error),
 
 	#[error("invalid method: {0:?}")]
@@ -31,8 +31,8 @@ pub enum PostWomanError {
 	#[error("invalid regex: {0:?}")]
 	InvalidRegex(#[from] regex::Error),
 
-	#[error("request didn't match expected status code: {0:?}")]
-	UnexpectedStatusCode(reqwest::Response),
+	#[error("request didn't match expected status code:\n{0}\nBody: {1}")]
+	UnexpectedStatusCode(String, String),
 
 	#[error("request didn't match expected result: got '{0}' expected '{1}'")]
 	UnexpectedResult(String, String),

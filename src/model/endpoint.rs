@@ -128,7 +128,7 @@ impl EndpointConfig {
 			.await?;
 
 		if res.status().as_u16() != self.status.unwrap_or(200) {
-			return Err(PostWomanError::UnexpectedStatusCode(res));
+			return Err(PostWomanError::UnexpectedStatusCode(format!("{res:#?}"), format_body(res).await?));
 		}
 
 		let res = match self.extract.unwrap_or_default() {

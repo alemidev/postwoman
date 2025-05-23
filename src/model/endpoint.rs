@@ -91,14 +91,25 @@ impl EndpointConfig {
 				url = format!("{url}?{q}");
 			},
 			Some(StringOr::T(ref q)) => {
-				url = format!(
-					"{url}?{}",
-					q
-						.iter()
-						.map(|(k, v)| format!("{k}={v}"))
-						.collect::<Vec<String>>()
-						.join("&")
-				);
+				let mut parsed = Vec::new();
+				for (k, v) in q {
+					match v {
+						toml::Value::String(_)
+						| toml::Value::Boolean(_)
+						| toml::Value::Integer(_)
+						| toml::Value::Float(_)
+						| toml::Value::Datetime(_) => parsed.push(format!("{k}={v}")),
+						toml::Value::Array(arr) => for x in arr {
+							parsed.push(format!("{k}={x}"));
+						},
+						toml::Value::Table(json) => {
+							// should be safe unwrapping here as all TOML should be representable in json
+							let stringified = serde_json::to_string(&json).unwrap_or_default();
+							parsed.push(format!("{k}={stringified}"));
+						},
+					}
+				}
+				url = format!("{url}?{}", parsed.join("&"));
 			},
 		}
 		url

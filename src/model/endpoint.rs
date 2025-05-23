@@ -8,7 +8,7 @@ use jaq_interpret::FilterT;
 use crate::errors::InvalidHeaderError;
 use crate::{PostWomanError, APP_USER_AGENT};
 
-use crate::ext::{stringify_json, FillError, FillableFromEnvironment, StringOr};
+use crate::ext::{stringify_json, FillError, FillableFromEnvironment, RawRepresentable, StringOr};
 use super::{ExtractorConfig, ClientConfig};
 
 
@@ -65,7 +65,7 @@ impl EndpointConfig {
 				},
 				Some(StringOr::T(ref h)) => {
 					for (k, raw_v) in h {
-						let v = raw_v.to_string();
+						let v = raw_v.to_raw_string();
 						headers.insert(
 							HeaderName::from_str(k)?,
 							HeaderValue::from_str(&v)?,
@@ -92,6 +92,7 @@ impl EndpointConfig {
 			},
 			Some(StringOr::T(ref q)) => {
 				let mut parsed = Vec::new();
+				// TODO: would be nice to reuse .to_raw_string() here
 				for (k, v) in q {
 					match v {
 						toml::Value::String(_)

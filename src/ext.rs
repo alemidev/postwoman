@@ -152,3 +152,29 @@ impl<T: ReplaceableValue> ReplaceableValue for StringOr<T> {
 		}
 	}
 }
+
+pub trait RawRepresentable {
+	fn to_raw_string(&self) -> String;
+}
+
+impl RawRepresentable for toml::Value {
+	fn to_raw_string(&self) -> String {
+		match self {
+			toml::Value::String(x) => x.clone(),
+			toml::Value::Integer(x) => x.to_string(),
+			toml::Value::Float(x) => x.to_string(),
+			toml::Value::Boolean(x) => x.to_string(),
+			toml::Value::Datetime(datetime) => datetime.to_string(),
+			toml::Value::Array(vec) => vec
+				.iter()
+				.map(|x| x.to_raw_string())
+				.collect::<Vec<String>>()
+				.join(","),
+			toml::Value::Table(map) => map
+				.into_iter()
+				.map(|(k, v)| format!("{k}:{}", v.to_raw_string()))
+				.collect::<Vec<String>>()
+				.join(","),
+		}
+	}
+}

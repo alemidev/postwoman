@@ -70,7 +70,6 @@ impl EndpointConfig {
 							HeaderName::from_str(k)?,
 							HeaderValue::from_str(&v)?,
 						);
-
 					}
 				},
 			}
@@ -99,7 +98,7 @@ impl EndpointConfig {
 						| toml::Value::Boolean(_)
 						| toml::Value::Integer(_)
 						| toml::Value::Float(_)
-						| toml::Value::Datetime(_) => parsed.push(format!("{k}={v}")),
+						| toml::Value::Datetime(_) => parsed.push(format!("{k}={}", v.to_raw_string())),
 						toml::Value::Array(arr) => for x in arr {
 							parsed.push(format!("{k}={x}"));
 						},

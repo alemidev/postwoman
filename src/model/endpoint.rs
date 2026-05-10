@@ -55,7 +55,7 @@ impl EndpointConfig {
 		for header_map in [&opts.headers, &self.headers] {
 			match header_map {
 				None => {},
-				Some(StringOr::Str(ref h)) => {
+				Some(StringOr::Str(h)) => {
 					let (k, v) = h.split_once(':')
 						.ok_or_else(|| InvalidHeaderError::Format(h.clone()))?;
 					headers.insert(
@@ -63,7 +63,7 @@ impl EndpointConfig {
 						HeaderValue::from_str(v)?,
 					);
 				},
-				Some(StringOr::T(ref h)) => {
+				Some(StringOr::T(h)) => {
 					for (k, raw_v) in h {
 						let v = raw_v.to_raw_string();
 						headers.insert(
@@ -177,10 +177,8 @@ impl EndpointConfig {
 			},
 		};
 
-		if let Some(expected) = self.expect {
-			if expected != res {
-				return Err(PostWomanError::UnexpectedResult(res, expected));
-			}
+		if let Some(expected) = self.expect && expected != res {
+			return Err(PostWomanError::UnexpectedResult(res, expected));
 		}
 
 		Ok(res)
